@@ -1,0 +1,51 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Represents a user in the TT App",
+      "type": "object",
+      "properties": {
+        "user": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string" },
+            "username": { "type": "string" },
+            "email": { "type": "string", "format": "email" },
+            "displayName": { "type": "string" },
+            "avatarUrl": { "type": "string" },
+            "joinedDate": { "type": "string", "format": "date-time" },
+            "passkeys": { "type": "array", "items": { "type": "object" } },
+            "passkeyHash": { "type": "string" },
+            "backgroundAlertsEnabled": { "type": "boolean" },
+            "googleIntegration": { "type": "object" },
+            "excelIntegration": { "type": "object" },
+            "loginAttempts": { "type": "number" },
+            "lockUntil": { "type": "number" },
+            "lastLoginIP": { "type": "string" },
+            "deviceFingerprint": { "type": "string" },
+            "announcementLink": { "type": "string" },
+            "linkHistory": { "type": "array", "items": { "type": "object" } },
+            "aiSettings": { "type": "object" },
+            "pro_status": { "type": "boolean" },
+            "subscription_active": { "type": "boolean" },
+            "subscription_date": { "type": "string", "format": "date-time" },
+            "emailSummaryUsed": { "type": "boolean" },
+            "daily_message_count": { "type": "number" },
+            "daily_file_upload_count": { "type": "number" },
+            "daily_link_count": { "type": "number" },
+            "last_reset_date": { "type": "string", "format": "date-time" }
+          },
+          "required": ["id", "username", "email", " joinedDate", "displayName"]
+        },
+        "specialWordHash": { "type": "string" }
+      },
+      "required": ["user"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores user profiles and settings"
+    }
+  }
+}

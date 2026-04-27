@@ -1,0 +1,94 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Phase 0: Default Deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitives
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+
+    function isValidUserObj(data) {
+      return data.keys().hasAll(['id', 'username', 'email'])
+          && data.id == request.auth.uid
+          && data.get('username', '') is string && data.get('username', '').size() <= 100
+          && data.get('email', '') is string && data.get('email', '').size() <= 200
+          && (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 200))
+          && (!('avatarUrl' in data) || (data.avatarUrl is string && data.avatarUrl.size() <= 1048576))
+          && (!('joinedDate' in data) || (data.joinedDate is string && data.joinedDate.size() <= 100))
+          && (!('passkeys' in data) || (data.passkeys is list && data.passkeys.size() <= 20))
+          && (!('passkeyHash' in data) || (data.passkeyHash is string && data.passkeyHash.size() <= 256))
+          && (!('backgroundAlertsEnabled' in data) || data.backgroundAlertsEnabled is bool)
+          && (!('googleIntegration' in data) || data.googleIntegration is map)
+          && (!('excelIntegration' in data) || data.excelIntegration is map)
+          && (!('loginAttempts' in data) || data.loginAttempts is number)
+          && (!('lockUntil' in data) || data.lockUntil is number || data.lockUntil == null)
+          && (!('lastLoginIP' in data) || (data.lastLoginIP is string && data.lastLoginIP.size() <= 100))
+          && (!('deviceFingerprint' in data) || (data.deviceFingerprint is string && data.deviceFingerprint.size() <= 200))
+          && (!('aiSettings' in data) || data.aiSettings is map)
+          && (!('announcementLink' in data) || (data.announcementLink is string && data.announcementLink.size() <= 2048))
+          && (!('linkHistory' in data) || (data.linkHistory is list && data.linkHistory.size() <= 100))
+          && (!('pro_status' in data) || data.pro_status is bool)
+          && (!('subscription_active' in data) || data.subscription_active is bool)
+          && (!('subscription_date' in data) || (data.subscription_date is string && data.subscription_date.size() <= 100))
+          && (!('emailSummaryUsed' in data) || data.emailSummaryUsed is bool)
+          && (!('daily_message_count' in data) || data.daily_message_count is number)
+          && (!('daily_file_upload_count' in data) || data.daily_file_upload_count is number)
+          && (!('daily_link_count' in data) || data.daily_link_count is number)
+          && (!('last_reset_date' in data) || (data.last_reset_date is string && data.last_reset_date.size() <= 100));
+    }
+
+    function isValidUserDoc(data) {
+      return data.keys().hasAll(['user'])
+          && data.user is map
+          && isValidUserObj(data.user)
+          && (!('specialWordHash' in data) || (data.specialWordHash is string && data.specialWordHash.size() <= 500));
+    }
+
+    function isSafeUserDiff(incomingMap, existingMap) {
+      // Ensure no ghost fields are injected during update
+      let affected = incomingMap.diff(existingMap).affectedKeys();
+      let allowedKeys = ['id', 'username', 'email', 'displayName', 'avatarUrl', 'joinedDate', 'passkeys', 'passkeyHash', 
+        'backgroundAlertsEnabled', 'googleIntegration', 'excelIntegration', 'loginAttempts', 'lockUntil', 'lastLoginIP', 
+        'deviceFingerprint', 'aiSettings', 'announcementLink', 'linkHistory', 'pro_status', 'subscription_active', 
+        'subscription_date', 'emailSummaryUsed', 'daily_message_count', 'daily_file_upload_count', 'daily_link_count', 
+        'last_reset_date'];
+      return affected.hasOnly(allowedKeys);
+    }
+
+    function isValidUserUpdate(data, existingData) {
+      // Enforce immutability of core fields
+      return data.diff(existingData).affectedKeys().hasOnly(['user', 'specialWordHash'])
+          && data.user is map
+          && isSafeUserDiff(data.user, existingData.user)
+          && isValidUserObj(data.user)
+          && data.user.id == existingData.user.id 
+          && data.user.get('email', '') == existingData.user.get('email', '') 
+          && data.user.get('joinedDate', '') == existingData.user.get('joinedDate', '');
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && request.auth.uid == userId && isValidId(userId);
+      // Client query delegation MUST BE PREVENTED
+      allow list: if false; 
+      
+      allow create: if isSignedIn() 
+          && request.auth.uid == userId 
+          && isValidId(userId)
+          && isValidUserDoc(incoming());
+
+      allow update: if isSignedIn() 
+          && request.auth.uid == userId 
+          && isValidId(userId)
+          && isValidUserUpdate(incoming(), existing());
+          
+      allow delete: if isSignedIn() && request.auth.uid == userId && isValidId(userId);
+    }
+  }
+}

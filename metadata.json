@@ -1,0 +1,7 @@
+{
+  "name": "Remix 2",
+  "description": "A futuristic smart timetable management application powered by AI to organize your life, studies, and work efficiently.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
