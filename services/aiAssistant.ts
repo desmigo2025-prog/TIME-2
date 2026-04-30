@@ -1,269 +1,302 @@
-import { GoogleGenAI, FunctionDeclaration, Type } from "@google/genai";
+import Groq from "groq-sdk";
 import { Task, TaskPriority, TaskStatus } from "../types";
 
-// Tool Definition: Create Task
-const createTaskTool: FunctionDeclaration = {
-    name: "createTask",
-    description: "Create a new task or event in the user's timetable.",
-    parameters: {
-        type: Type.OBJECT,
-        properties: {
-            title: { type: Type.STRING, description: "Title of the task" },
-            day: { type: Type.STRING, description: "Day of the week (Monday, Tuesday, etc.)" },
-            date: { type: Type.STRING, description: "Date in YYYY-MM-DD format (optional)" },
-            time: { type: Type.STRING, description: "Start time in HH:mm format (24hr)" },
-            durationMinutes: { type: Type.NUMBER, description: "Duration in minutes" },
-            venue: { type: Type.STRING, description: "Location or venue" },
-            description: { type: Type.STRING, description: "Details about the task" }
-        },
-        required: ["title", "day", "time"]
+// Tool Definitions for Groq
+const createTaskTool = {
+    type: "function",
+    function: {
+        name: "createTask",
+        description: "Create a new task or event in the user's timetable.",
+        parameters: {
+            type: "object",
+            properties: {
+                title: { type: "string", description: "Title of the task" },
+                day: { type: "string", description: "Day of the week (Monday, Tuesday, etc.)" },
+                date: { type: "string", description: "Date in YYYY-MM-DD format (optional)" },
+                time: { type: "string", description: "Start time in HH:mm format (24hr)" },
+                durationMinutes: { type: "number", description: "Duration in minutes" },
+                venue: { type: "string", description: "Location or venue" },
+                description: { type: "string", description: "Details about the task" }
+            },
+            required: ["title", "day", "time"]
+        }
     }
 };
 
-// Tool Definition: Web Search (Trigger)
-const webSearchTool: FunctionDeclaration = {
-    name: "webSearch",
-    description: "Search the internet for real-time information, news, or facts. Use this when the user asks a question about current events or general knowledge.",
-    parameters: {
-        type: Type.OBJECT,
-        properties: {
-            query: { type: Type.STRING, description: "The search query" }
-        },
-        required: ["query"]
+const webSearchTool = {
+    type: "function",
+    function: {
+        name: "webSearch",
+        description: "Search the internet for real-time information, news, or facts. Use this when the user asks a question about current events or general knowledge.",
+        parameters: {
+            type: "object",
+            properties: {
+                query: { type: "string", description: "The search query" }
+            },
+            required: ["query"]
+        }
     }
 };
 
-// Tool Definition: Phone Action
-const phoneActionTool: FunctionDeclaration = {
-    name: "phoneAction",
-    description: "Perform phone actions like setting alarms or opening apps.",
-    parameters: {
-        type: Type.OBJECT,
-        properties: {
-            actionType: { type: Type.STRING, description: "ALARM, OPEN_APP, or REMINDER" },
-            payload: { type: Type.STRING, description: "Details (e.g., app name or time)" }
-        },
-        required: ["actionType", "payload"]
+const phoneActionTool = {
+    type: "function",
+    function: {
+        name: "phoneAction",
+        description: "Perform phone actions like setting alarms or opening apps.",
+        parameters: {
+            type: "object",
+            properties: {
+                actionType: { type: "string", description: "ALARM, OPEN_APP, or REMINDER" },
+                payload: { type: "string", description: "Details (e.g., app name or time)" }
+            },
+            required: ["actionType", "payload"]
+        }
     }
 };
 
-// Tool Definition: Schedule Background Reminder
-const scheduleReminderTool: FunctionDeclaration = {
-    name: "scheduleReminder",
-    description: "Schedule a reminder or background notification for a future time.",
-    parameters: {
-        type: Type.OBJECT,
-        properties: {
-            message: { type: Type.STRING, description: "The reminder message text" },
-            delayMinutes: { type: Type.NUMBER, description: "How many minutes from now to trigger the reminder" }
-        },
-        required: ["message", "delayMinutes"]
+const scheduleReminderTool = {
+    type: "function",
+    function: {
+        name: "scheduleReminder",
+        description: "Schedule a reminder or background notification for a future time.",
+        parameters: {
+            type: "object",
+            properties: {
+                message: { type: "string", description: "The reminder message text" },
+                delayMinutes: { type: "number", description: "How many minutes from now to trigger the reminder" }
+            },
+            required: ["message", "delayMinutes"]
+        }
     }
 };
 
-// Tool Definition: Suggest Personalized Timetable
-const suggestTimetableTool: FunctionDeclaration = {
-    name: "suggestTimetable",
-    description: "Generate a complete or partial timetable with multiple tasks based on user request. Use this to plan a day or week. Use the preferences gathered from the user (study hours, breaks, difficulty) to personalize the schedule.",
-    parameters: {
-        type: Type.OBJECT,
-        properties: {
-            tasks: {
-                type: Type.ARRAY,
-                items: {
-                    type: Type.OBJECT,
-                    properties: {
-                        title: { type: Type.STRING },
-                        day: { type: Type.STRING },
-                        time: { type: Type.STRING },
-                        durationMinutes: { type: Type.NUMBER },
-                        venue: { type: Type.STRING },
-                        description: { type: Type.STRING }
+const suggestTimetableTool = {
+    type: "function",
+    function: {
+        name: "suggestTimetable",
+        description: "Generate a complete or partial timetable with multiple tasks based on user request. Use this to plan a day or week. Use the preferences gathered from the user (study hours, breaks, difficulty) to personalize the schedule.",
+        parameters: {
+            type: "object",
+            properties: {
+                tasks: {
+                    type: "array",
+                    items: {
+                        type: "object",
+                        properties: {
+                            title: { type: "string" },
+                            day: { type: "string" },
+                            time: { type: "string" },
+                            durationMinutes: { type: "number" },
+                            venue: { type: "string" },
+                            description: { type: "string" }
+                        }
+                    }
+                },
+                planSummary: { type: "string", description: "A brief summary of the generated plan to tell the user." }
+            },
+            required: ["tasks", "planSummary"]
+        }
+    }
+};
+
+const askUserPreferenceTool = {
+    type: "function",
+    function: {
+        name: "askUserPreference",
+        description: "Ask the user a question to gather preferences (e.g., study hours, break times, preferred difficulty) and provide suggested answers for them to click.",
+        parameters: {
+            type: "object",
+            properties: {
+                question: { type: "string", description: "The question to ask the user" },
+                suggestedAnswers: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "A list of 2-4 suggested answers the user can choose from"
+                }
+            },
+            required: ["question", "suggestedAnswers"]
+        }
+    }
+};
+
+const getLectureNotesTool = {
+    type: "function",
+    function: {
+        name: "getLectureNotes",
+        description: "Retrieve the notes and transcript of a specific recorded lecture by its ID. Use this when the user asks about a past lecture.",
+        parameters: {
+            type: "object",
+            properties: {
+                lectureId: { type: "string", description: "The ID of the lecture to retrieve" }
+            },
+            required: ["lectureId"]
+        }
+    }
+};
+
+const analyzeStudyPredictorTool = {
+    type: "function",
+    function: {
+        name: "analyzeStudyPredictor",
+        description: "Analyze the user's study history, missed sessions, and upcoming exams to predict what they should study today and identify their weak areas. Use this when the user asks 'What should I study today?' or 'What am I weak at?'.",
+        parameters: {
+            type: "object",
+            properties: {
+                reason: { type: "string", description: "Reason for running the analysis" }
+            },
+            required: ["reason"]
+        }
+    }
+};
+
+const deleteTasksTool = {
+    type: "function",
+    function: {
+        name: "deleteTasks",
+        description: "Delete one or more tasks by their IDs. Use this when the user asks to delete, remove, or clear tasks. ALWAYS ask for confirmation before deleting multiple tasks or if you are unsure.",
+        parameters: {
+            type: "object",
+            properties: {
+                taskIds: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "List of task IDs to delete"
+                }
+            },
+            required: ["taskIds"]
+        }
+    }
+};
+
+const updateTasksTool = {
+    type: "function",
+    function: {
+        name: "updateTasks",
+        description: "Move or reschedule one or more tasks by their IDs. Use this when the user asks to move, reschedule, or shift tasks to a different day or time.",
+        parameters: {
+            type: "object",
+            properties: {
+                updates: {
+                    type: "array",
+                    items: {
+                        type: "object",
+                        properties: {
+                            id: { type: "string", description: "The ID of the task to update" },
+                            day: { type: "string", description: "The new day of the week (optional)" },
+                            date: { type: "string", description: "The new date in YYYY-MM-DD format (optional)" },
+                            time: { type: "string", description: "The new start time in HH:mm format (optional)" },
+                            durationMinutes: { type: "number", description: "The new duration in minutes (optional)" }
+                        },
+                        required: ["id"]
                     }
                 }
             },
-            planSummary: { type: Type.STRING, description: "A brief summary of the generated plan to tell the user." }
-        },
-        required: ["tasks", "planSummary"]
+            required: ["updates"]
+        }
     }
 };
 
-// Tool Definition: Ask User Preference
-const askUserPreferenceTool: FunctionDeclaration = {
-    name: "askUserPreference",
-    description: "Ask the user a question to gather preferences (e.g., study hours, break times, preferred difficulty) and provide suggested answers for them to click.",
-    parameters: {
-        type: Type.OBJECT,
-        properties: {
-            question: { type: Type.STRING, description: "The question to ask the user" },
-            suggestedAnswers: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-                description: "A list of 2-4 suggested answers the user can choose from"
-            }
-        },
-        required: ["question", "suggestedAnswers"]
+const navigateAppTool = {
+    type: "function",
+    function: {
+        name: "navigateApp",
+        description: "Navigate the user to a specific page or feature in the app.",
+        parameters: {
+            type: "object",
+            properties: {
+                page: { type: "string", description: "The page to navigate to (e.g., 'home', 'tasks', 'timetable', 'lectures', 'exam', 'profile', 'study-materials')" }
+            },
+            required: ["page"]
+        }
     }
 };
 
-// Tool Definition: Get Lecture Notes
-const getLectureNotesTool: FunctionDeclaration = {
-    name: "getLectureNotes",
-    description: "Retrieve the notes and transcript of a specific recorded lecture by its ID. Use this when the user asks about a past lecture.",
-    parameters: {
-        type: Type.OBJECT,
-        properties: {
-            lectureId: { type: Type.STRING, description: "The ID of the lecture to retrieve" }
-        },
-        required: ["lectureId"]
-    }
-};
-
-// Tool Definition: Analyze Study Predictor
-const analyzeStudyPredictorTool: FunctionDeclaration = {
-    name: "analyzeStudyPredictor",
-    description: "Analyze the user's study history, missed sessions, and upcoming exams to predict what they should study today and identify their weak areas. Use this when the user asks 'What should I study today?' or 'What am I weak at?'.",
-    parameters: {
-        type: Type.OBJECT,
-        properties: {
-            reason: { type: Type.STRING, description: "Reason for running the analysis" }
-        },
-        required: ["reason"]
-    }
-};
-
-// Tool Definition: Delete Tasks
-const deleteTasksTool: FunctionDeclaration = {
-    name: "deleteTasks",
-    description: "Delete one or more tasks by their IDs. Use this when the user asks to delete, remove, or clear tasks. ALWAYS ask for confirmation before deleting multiple tasks or if you are unsure.",
-    parameters: {
-        type: Type.OBJECT,
-        properties: {
-            taskIds: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-                description: "List of task IDs to delete"
-            }
-        },
-        required: ["taskIds"]
-    }
-};
-
-// Tool Definition: Update Tasks
-const updateTasksTool: FunctionDeclaration = {
-    name: "updateTasks",
-    description: "Move or reschedule one or more tasks by their IDs. Use this when the user asks to move, reschedule, or shift tasks to a different day or time.",
-    parameters: {
-        type: Type.OBJECT,
-        properties: {
-            updates: {
-                type: Type.ARRAY,
-                items: {
-                    type: Type.OBJECT,
+const updateUserSettingsTool = {
+    type: "function",
+    function: {
+        name: "updateUserSettings",
+        description: "Update user preferences like theme, voice response, or background execution. ALWAYS ask for confirmation before changing settings.",
+        parameters: {
+            type: "object",
+            properties: {
+                settings: {
+                    type: "object",
                     properties: {
-                        id: { type: Type.STRING, description: "The ID of the task to update" },
-                        day: { type: Type.STRING, description: "The new day of the week (optional)" },
-                        date: { type: Type.STRING, description: "The new date in YYYY-MM-DD format (optional)" },
-                        time: { type: Type.STRING, description: "The new start time in HH:mm format (optional)" },
-                        durationMinutes: { type: Type.NUMBER, description: "The new duration in minutes (optional)" }
-                    },
-                    required: ["id"]
+                        theme: { type: "string", description: "Theme name (e.g., 'dark', 'light', 'nature', 'ocean', 'sunset', 'ladies', 'white')" },
+                        voiceResponseEnabled: { type: "boolean", description: "Enable or disable voice responses" },
+                        backgroundEnabled: { type: "boolean", description: "Enable or disable background execution" },
+                        dynamicGreetingsEnabled: { type: "boolean", description: "Enable or disable dynamic greetings" }
+                    }
                 }
-            }
-        },
-        required: ["updates"]
+            },
+            required: ["settings"]
+        }
     }
 };
 
-// Tool Definition: Navigate App
-const navigateAppTool: FunctionDeclaration = {
-    name: "navigateApp",
-    description: "Navigate the user to a specific page or feature in the app.",
-    parameters: {
-        type: Type.OBJECT,
-        properties: {
-            page: { type: Type.STRING, description: "The page to navigate to (e.g., 'home', 'tasks', 'timetable', 'lectures', 'exam', 'profile', 'study-materials')" }
-        },
-        required: ["page"]
+const startFocusModeTool = {
+    type: "function",
+    function: {
+        name: "startFocusMode",
+        description: "Start a focus session (Pomodoro) for a specified number of minutes. This will block notifications and reduce distractions.",
+        parameters: {
+            type: "object",
+            properties: {
+                minutes: { type: "number", description: "Duration of the focus session in minutes (e.g., 25)" }
+            },
+            required: ["minutes"]
+        }
     }
 };
 
-// Tool Definition: Update User Settings
-const updateUserSettingsTool: FunctionDeclaration = {
-    name: "updateUserSettings",
-    description: "Update user preferences like theme, voice response, or background execution. ALWAYS ask for confirmation before changing settings.",
-    parameters: {
-        type: Type.OBJECT,
-        properties: {
-            settings: {
-                type: Type.OBJECT,
-                properties: {
-                    theme: { type: Type.STRING, description: "Theme name (e.g., 'dark', 'light', 'nature', 'ocean', 'sunset', 'ladies', 'white')" },
-                    voiceResponseEnabled: { type: Type.BOOLEAN, description: "Enable or disable voice responses" },
-                    backgroundEnabled: { type: Type.BOOLEAN, description: "Enable or disable background execution" },
-                    dynamicGreetingsEnabled: { type: Type.BOOLEAN, description: "Enable or disable dynamic greetings" }
-                }
-            }
-        },
-        required: ["settings"]
+const stopFocusModeTool = {
+    type: "function",
+    function: {
+        name: "stopFocusMode",
+        description: "Stop the current focus session early.",
+        parameters: {
+            type: "object",
+            properties: {}
+        }
     }
 };
 
-// Tool Definition: Start Focus Mode
-const startFocusModeTool: FunctionDeclaration = {
-    name: "startFocusMode",
-    description: "Start a focus session (Pomodoro) for a specified number of minutes. This will block notifications and reduce distractions.",
-    parameters: {
-        type: Type.OBJECT,
-        properties: {
-            minutes: { type: Type.NUMBER, description: "Duration of the focus session in minutes (e.g., 25)" }
-        },
-        required: ["minutes"]
+const startLectureRecordingTool = {
+    type: "function",
+    function: {
+        name: "startLectureRecording",
+        description: "Start recording a lecture. Use this when the user asks to start recording.",
+        parameters: {
+            type: "object",
+            properties: {}
+        }
     }
 };
 
-// Tool Definition: Stop Focus Mode
-const stopFocusModeTool: FunctionDeclaration = {
-    name: "stopFocusMode",
-    description: "Stop the current focus session early.",
-    parameters: {
-        type: Type.OBJECT,
-        properties: {}
-    }
-};
-
-// Tool Definition: Start Lecture Recording
-const startLectureRecordingTool: FunctionDeclaration = {
-    name: "startLectureRecording",
-    description: "Start recording a lecture. Use this when the user asks to start recording.",
-    parameters: {
-        type: Type.OBJECT,
-        properties: {}
-    }
-};
-
-// Tool Definition: Stop Lecture Recording
-const stopLectureRecordingTool: FunctionDeclaration = {
-    name: "stopLectureRecording",
-    description: "Stop the current lecture recording. Use this when the user asks to stop recording.",
-    parameters: {
-        type: Type.OBJECT,
-        properties: {}
+const stopLectureRecordingTool = {
+    type: "function",
+    function: {
+        name: "stopLectureRecording",
+        description: "Stop the current lecture recording. Use this when the user asks to stop recording.",
+        parameters: {
+            type: "object",
+            properties: {}
+        }
     }
 };
 
 export class AIAssistantService {
-    private ai: GoogleGenAI;
-    private modelName = "gemini-3-flash-preview";
+    private groq: Groq;
+    private modelName = "llama-3.3-70b-versatile";
 
     constructor() {
-        // Connection Check: Ensure API Key is available
-        if (!process.env.API_KEY) {
-            console.error("AI Service Error: Missing API_KEY in environment variables.");
+        const apiKey = process.env.GROQ_API_KEY || "missing_key";
+        if (apiKey === "missing_key") {
+            console.error("AI Service Error: Missing GROQ_API_KEY in environment variables.");
         } else {
-            console.log("AI Service: Initializing with key ending in ...", process.env.API_KEY.slice(-4));
+            console.log("AI Service: Initializing with Groq key ending in ...", apiKey.slice(-4));
         }
-        this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        this.groq = new Groq({ apiKey: apiKey, dangerouslyAllowBrowser: true });
     }
 
     // Main Chat Generation
@@ -343,7 +376,7 @@ export class AIAssistantService {
             - Remove or alter core chatbot responses
         `;
 
-        let toolsList: FunctionDeclaration[] = [webSearchTool, askUserPreferenceTool, getLectureNotesTool, analyzeStudyPredictorTool];
+        let toolsList = [webSearchTool, askUserPreferenceTool, getLectureNotesTool, analyzeStudyPredictorTool] as any[];
         
         if (aiControlEnabled) {
             toolsList.push(createTaskTool, phoneActionTool, scheduleReminderTool, deleteTasksTool, updateTasksTool, navigateAppTool, updateUserSettingsTool, startLectureRecordingTool, stopLectureRecordingTool, startFocusModeTool, stopFocusModeTool);
@@ -355,20 +388,37 @@ export class AIAssistantService {
 
         try {
             console.log("AI Service: Sending request to model", this.modelName);
-            const response = await this.ai.models.generateContent({
+            
+            const convertedHistory = history.map(h => ({
+                role: h.role === "model" ? "assistant" : "user",
+                content: h.parts.map(p => p.text).join(" ")
+            })) as any[];
+
+            const response = await this.groq.chat.completions.create({
                 model: this.modelName,
-                contents: [
-                    ...history.map(h => ({ role: h.role, parts: h.parts })),
-                    { role: "user", parts: [{ text: userMessage }] }
+                messages: [
+                    { role: "system", content: systemInstruction },
+                    ...convertedHistory,
+                    { role: "user", content: userMessage }
                 ],
-                config: {
-                    systemInstruction: systemInstruction,
-                    tools: [{ functionDeclarations: toolsList }],
-                }
+                tools: toolsList,
+                tool_choice: "auto"
             });
 
             console.log("AI Service: Received response successfully.");
-            return response;
+            
+            const choice = response.choices[0].message;
+            
+            // Map Groq response to match Gemini's structure expected by AIContext
+            const mappedResponse = {
+                text: choice.content || "",
+                functionCalls: choice.tool_calls ? choice.tool_calls.map(tc => ({
+                    name: tc.function.name,
+                    args: JSON.parse(tc.function.arguments)
+                })) : undefined
+            };
+
+            return mappedResponse;
         } catch (error) {
             console.error("AI Generation Error (Backend Connection Failed):", error);
             throw error;
@@ -379,14 +429,20 @@ export class AIAssistantService {
     async performGroundedSearch(query: string) {
         try {
             console.log("AI Service: Performing Grounded Search for:", query);
-            const response = await this.ai.models.generateContent({
-                model: this.modelName,
-                contents: query,
-                config: {
-                    tools: [{ googleSearch: {} }]
-                }
+            const response = await this.groq.chat.completions.create({
+                model: "llama3-8b-8192", // Fast model for simple search fallback
+                messages: [
+                    { role: "system", content: "You are a helpful assistant. Search tools are currently offline, so answer the user's question to the best of your knowledge." },
+                    { role: "user", content: query }
+                ],
+                response_format: { type: "text" }
             });
-            return response;
+            
+            // Map to expected Gemini format
+            return {
+                text: response.choices[0].message.content,
+                candidates: [] // No grounding metadata available from Groq natively in this shim
+            };
         } catch (error) {
             console.error("AI Search Error:", error);
             throw error;
