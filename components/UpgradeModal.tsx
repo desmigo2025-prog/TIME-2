@@ -22,10 +22,10 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose }) => {
     setError(null);
 
     try {
-      const paystackKey = (import.meta as any).env.VITE_PAYSTACK_PUBLIC_KEY;
+      const paystackKey = (import.meta as any).env.VITE_PAYSTACK_PUBLIC_KEY || 'pk_test_c5ca851356307863f6808122967c6f09b29dd44a';
       
       if (!paystackKey) {
-        setError('Payment system is not configured currently. Please contact support.');
+        setError('Payment system is not configured. Please add VITE_PAYSTACK_PUBLIC_KEY to your environment variables (Settings -> Secrets) and restart the dev server.');
         setIsLoading(false);
         return;
       }
@@ -36,48 +36,49 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose }) => {
         return;
       }
 
-      // Initialize Paystack Checkout
       const handler = (window as any).PaystackPop.setup({
         key: paystackKey,
         email: user.email,
         amount: 500, // 5 GHS in pesewas
         currency: 'GHS',
-        ref: '' + Math.floor((Math.random() * 1000000000) + 1),
-        callback: async function (response: any) {
+        reference: '' + Math.floor((Math.random() * 1000000000) + 1),
+        callback: (response: any) => {
           // Verify on backend
-          try {
-            const res = await fetch('/api/verify-payment', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                reference: response.reference,
-                userId: user.id,
-              }),
-            });
-
-            const data = await res.json();
-
-            if (data.success) {
-              // Update local state immediately for better UX
-              await updateProfile({
-                pro_status: true,
-                subscription_active: true,
-                subscription_date: new Date().toISOString(),
+          (async () => {
+            try {
+              const res = await fetch('/api/verify-payment', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  reference: response.reference,
+                  userId: user.id,
+                }),
               });
-              onClose();
-            } else {
-              setError(data.error || 'Payment failed. Please try again.');
+
+              const data = await res.json();
+
+              if (data.success) {
+                // Update local state immediately for better UX
+                await updateProfile({
+                  pro_status: true,
+                  subscription_active: true,
+                  subscription_date: new Date().toISOString(),
+                });
+                onClose();
+              } else {
+                setError(data.error || 'Payment failed. Please try again.');
+              }
+            } catch (err) {
+              console.error(err);
+              setError('Payment failed. Please try again.');
+            } finally {
+              setIsLoading(false);
             }
-          } catch (err) {
-            console.error(err);
-            setError('Payment failed. Please try again.');
-          } finally {
-            setIsLoading(false);
-          }
+          })();
         },
-        onClose: function () {
+        onClose: () => {
           setIsLoading(false);
         },
       });

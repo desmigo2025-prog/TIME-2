@@ -120,6 +120,7 @@ export interface User {
   subscription_active?: boolean;
   subscription_date?: string;
   emailSummaryUsed?: boolean;
+  automaticDailySummaryEnabled?: boolean;
   // Usage Tracking
   daily_message_count?: number;
   daily_file_upload_count?: number;

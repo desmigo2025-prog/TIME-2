@@ -99,26 +99,6 @@ const suggestTimetableTool = {
     }
 };
 
-const askUserPreferenceTool = {
-    type: "function",
-    function: {
-        name: "askUserPreference",
-        description: "Ask the user a question to gather preferences (e.g., study hours, break times, preferred difficulty) and provide suggested answers for them to click.",
-        parameters: {
-            type: "object",
-            properties: {
-                question: { type: "string", description: "The question to ask the user" },
-                suggestedAnswers: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "A list of 2-4 suggested answers the user can choose from"
-                }
-            },
-            required: ["question", "suggestedAnswers"]
-        }
-    }
-};
-
 const getLectureNotesTool = {
     type: "function",
     function: {
@@ -326,39 +306,38 @@ export class AIAssistantService {
             2. Search web: If the user asks for current info (news, weather, facts), use 'webSearch' tool.
             3. Phone actions: If user says "Open Instagram" or "Set alarm", use 'phoneAction'.
             4. Future Reminders: If user says "Remind me in X minutes/hours", use 'scheduleReminder'.
-            ${isPro ? "5. Plan/Timetable: If user asks for a study plan, workout schedule, or 'plan my day', use 'suggestTimetable'. Before creating the timetable, ask follow-up questions if needed (e.g., preferred study hours, days available, break preferences, difficulty of subjects) using the 'askUserPreference' tool." : "5. Plan/Timetable: If the user asks to generate a timetable or study plan, you MUST decline and say exactly: 'This feature is available for Pro users. Upgrade to access AI timetable generation.'"}
+            ${isPro ? "5. Plan/Timetable: If user asks for a study plan, workout schedule, or 'plan my day', use 'suggestTimetable'. Before creating the timetable, ask follow-up questions if needed (e.g., preferred study hours, days available, break preferences, difficulty of subjects)." : "5. Plan/Timetable: If the user asks to generate a timetable or study plan, you MUST decline and say exactly: 'This feature is available for Pro users. Upgrade to access AI timetable generation.'"}
             6. Lecture Notes: If the user asks about a saved lecture, use 'getLectureNotes' to retrieve the transcript and notes.
             7. Delete Tasks: If the user asks to delete, remove, or clear tasks, use the 'deleteTasks' tool. ALWAYS ask for confirmation before deleting multiple tasks or if the request is ambiguous.
             8. Move/Reschedule Tasks: If the user asks to move, reschedule, or shift tasks, use the 'updateTasks' tool. Check for time conflicts and suggest an alternative time if there is an overlap.
             9. Missed Tasks: If the user missed a task, suggest rescheduling it to their next free time today or the next available day. Use 'updateTasks' to reschedule.
-            10. Navigate App: If the user asks to go to a specific page or feature (e.g., "go to exam mode", "open flashcards", "show my tasks"), use 'navigateApp'.
-            11. Update Settings: If the user asks to change their theme, voice settings, or background execution, use 'updateUserSettings'. ALWAYS ask for confirmation before changing settings.
+            10. Navigate App: If the user asks to go to a specific page or feature (e.g., "go to exam mode", "open flashcards", "show my tasks", "open notifications", "go to calendar", "my profile"), use 'navigateApp'.
+            11. Update Settings: If the user asks to change their theme (e.g. "dark blue theme"), voice settings, or background execution, use 'updateUserSettings'. ALWAYS ask for confirmation before changing settings.
             12. Lecture Recording: If the user asks to start or stop recording a lecture, use 'startLectureRecording' or 'stopLectureRecording'.
-            13. Study Predictor: If the user asks "What should I study today?", "What am I weak at?", or asks for study suggestions based on history, use 'analyzeStudyPredictor'.
-            14. Focus Mode: If the user asks to start a focus session, study session, or pomodoro timer (e.g., "Start a 25-minute focus session"), use 'startFocusMode'. If they want to stop, use 'stopFocusMode'. While in Focus Mode, you can teach topics via voice.
-            15. Performance & Exams: You have access to the user's performance data and upcoming exams in your context. If they ask about their progress or exams, analyze this data and give them specific feedback (e.g., "You are behind in Chemistry", "3 days left until your Math exam, increase study time").
+            13. Study Predictor & Exams: If the user asks "What should I study today?", "Prepare me for next week's exams", "What am I weak at?", use 'analyzeStudyPredictor'.
+            14. Focus Mode: If the user asks to start a focus session, study session, or pomodoro timer (e.g., "Start a 25-minute focus session"), use 'startFocusMode'. If they want to stop, use 'stopFocusMode'.
+            15. Multi-Step Execution: You can execute multiple tools and commands at once if the user asks for a complex workflow. For example, "Prepare me for exams" might involve analyzing the predictor, generating a timetable, and setting reminders. Just process their request natively. You have access to the user's task context.
+            16. File & Data Intelligence: You will receive text content representing uploaded notes, PDFs, or images if the user attaches them. Deeply analyze the information to extract Dates, Subjects, Deadlines, Locations, and Time blocks. Use this data to accurately answer questions or actively generate tasks and study plans.
+            17. Strict Confirmation Control: For sensitive or bulk actions (deleting tasks, bulk modifications, changing settings), you MUST first ask the user for confirmation (e.g. "Are you sure you want to delete all your current tasks?") AND WAIT for their affirmative reply in the next turn BEFORE actually invoking the tool. DO NOT invoke the tool natively in the same turn you ask for confirmation.
             
-            OUTPUT FORMAT (STRICT):
-            Always return your response as a RAW JSON object. Do NOT include markdown code blocks (for example, no code fences). Do NOT include any text before or after the JSON.
-            Structure:
+            OUTPUT FORMAT:
+            You must return your conversational response as a JSON object (unless you are ONLY calling a tool). 
+            Example structure:
             {
-              "text": "Your normal chatbot response here",
+              "text": "Your conversational response here",
               "emotion": "happy | neutral | excited | thinking | serious",
               "animation": "idle | talking | explaining | greeting | alert",
-              "popup": true | false,
-              "priority": "low | medium | high"
+              "popup": false,
+              "priority": "low | medium | high",
+              "suggestedAnswers": ["Option 1"]
             }
-            
-            RULES for JSON fields:
-            - "text" = must contain the full answer (this is what user sees/hears)
-            - "emotion" = reflects tone of the message
-            - "animation" = guides avatar movement
-            - "popup" = true ONLY if the message is important or proactive
-            - "priority" = high if urgent, medium if useful, low if casual
+
+            TOOL CALLING:
+            If you need to perform an action (e.g. navigateApp, updateTasks), just invoke the tool natively using your function calling capabilities. DO NOT output manual HTML/XML/function tags like <function=navigateApp>. Just call the function directly! If you call a function, the API will handle it.
             
             BEHAVIOR:
             - For normal replies -> popup = false
-            - For important info, reminders, or proactive suggestions -> popup = true
+            - For important info -> popup = true
             - When explaining something -> use "explaining"
             - When greeting -> use "greeting"
             - When answering complex questions -> use "thinking" or "explaining"
@@ -376,7 +355,7 @@ export class AIAssistantService {
             - Remove or alter core chatbot responses
         `;
 
-        let toolsList = [webSearchTool, askUserPreferenceTool, getLectureNotesTool, analyzeStudyPredictorTool] as any[];
+        let toolsList = [webSearchTool, getLectureNotesTool, analyzeStudyPredictorTool] as any[];
         
         if (aiControlEnabled) {
             toolsList.push(createTaskTool, phoneActionTool, scheduleReminderTool, deleteTasksTool, updateTasksTool, navigateAppTool, updateUserSettingsTool, startLectureRecordingTool, stopLectureRecordingTool, startFocusModeTool, stopFocusModeTool);
@@ -419,8 +398,68 @@ export class AIAssistantService {
             };
 
             return mappedResponse;
-        } catch (error) {
+        } catch (error: any) {
             console.error("AI Generation Error (Backend Connection Failed):", error);
+            
+            // Auto-recover from Groq tool parsing errors
+            const rawError = error?.error?.error || error?.error || error;
+            if (rawError?.failed_generation && rawError?.code === "tool_use_failed") {
+                const failedGen = rawError.failed_generation as string;
+                console.log("Attempting to recover from failed_generation:", failedGen);
+                
+                // Try to extract the text vs the tool call
+                // Example: {"text": "Navigating..."} <function=navigateApp{"page": "home"}</function>
+                let textContent = "";
+                if (failedGen.includes("{") && failedGen.indexOf("<function") > 0) {
+                    const jsonPart = failedGen.substring(0, failedGen.indexOf("<function")).trim();
+                    try {
+                         // Verify it's valid JSON
+                         JSON.parse(jsonPart);
+                         textContent = jsonPart;
+                    } catch(e) {}
+                }
+
+                // Extensible regex to capture <function=NAME{JSON}</function> or similar outputs
+                const looseRegex = /<function=([^>\{]+)\s*(\{.*?\})\s*(?:<\/function>|>|$)/is;
+                const match = failedGen.match(looseRegex);
+                if (match && match[1] && match[2]) {
+                    const funcName = match[1].replace(/["']/g, '').trim(); // Remove rogue brackets or quotes
+                    try {
+                        const funcArgs = JSON.parse(match[2]);
+                        console.log("Recovered tool call:", funcName, funcArgs);
+                        return {
+                            text: textContent,
+                            functionCalls: [{
+                                name: funcName,
+                                args: funcArgs
+                            }]
+                        };
+                    } catch (parseErr) {
+                        console.error("Could not parse JSON in failed_generation", parseErr);
+                    }
+                }
+                
+                // Also handle cases where there are spaces, e.g. <function=askUserPreference {"question": "..."}>
+                const spaceRegex = /<function=([^>]+)(?:>|\s+)(\{.*?\})\s*(?:<\/function>|>|$)/is;
+                const spaceMatch = failedGen.match(spaceRegex);
+                if (spaceMatch && spaceMatch[1] && spaceMatch[2]) {
+                    const funcName = spaceMatch[1].trim();
+                    try {
+                        const funcArgs = JSON.parse(spaceMatch[2]);
+                        console.log("Recovered tool call (spaceMatch):", funcName, funcArgs);
+                        return {
+                            text: textContent,
+                            functionCalls: [{
+                                name: funcName,
+                                args: funcArgs
+                            }]
+                        };
+                    } catch (parseErr) {
+                        console.error("Could not parse JSON in failed_generation spaceMatch", parseErr);
+                    }
+                }
+            }
+            
             throw error;
         }
     }

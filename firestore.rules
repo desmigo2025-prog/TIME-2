@@ -38,6 +38,7 @@ service cloud.firestore {
           && (!('subscription_active' in data) || data.subscription_active is bool)
           && (!('subscription_date' in data) || (data.subscription_date is string && data.subscription_date.size() <= 100))
           && (!('emailSummaryUsed' in data) || data.emailSummaryUsed is bool)
+          && (!('automaticDailySummaryEnabled' in data) || data.automaticDailySummaryEnabled is bool)
           && (!('daily_message_count' in data) || data.daily_message_count is number)
           && (!('daily_file_upload_count' in data) || data.daily_file_upload_count is number)
           && (!('daily_link_count' in data) || data.daily_link_count is number)
@@ -57,7 +58,7 @@ service cloud.firestore {
       let allowedKeys = ['id', 'username', 'email', 'displayName', 'avatarUrl', 'joinedDate', 'passkeys', 'passkeyHash', 
         'backgroundAlertsEnabled', 'googleIntegration', 'excelIntegration', 'loginAttempts', 'lockUntil', 'lastLoginIP', 
         'deviceFingerprint', 'aiSettings', 'announcementLink', 'linkHistory', 'pro_status', 'subscription_active', 
-        'subscription_date', 'emailSummaryUsed', 'daily_message_count', 'daily_file_upload_count', 'daily_link_count', 
+        'subscription_date', 'emailSummaryUsed', 'automaticDailySummaryEnabled', 'daily_message_count', 'daily_file_upload_count', 'daily_link_count', 
         'last_reset_date'];
       return affected.hasOnly(allowedKeys);
     }

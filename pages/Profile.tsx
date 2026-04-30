@@ -399,6 +399,10 @@ const Profile = () => {
       }
   };
 
+  const toggleAutomaticDailySummary = () => {
+      updateProfile({ automaticDailySummaryEnabled: !user?.automaticDailySummaryEnabled });
+  };
+
   // --- PWA Install Handling ---
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -1166,26 +1170,26 @@ const Profile = () => {
                                   <CalIcon className="text-blue-500" size={20} />
                               </div>
                               <div>
-                                  <h4 className="font-bold text-current text-sm">Google Calendar</h4>
+                                  <h4 className="font-bold text-current text-sm">Import Google Calendar</h4>
                                   {user?.googleIntegration?.isConnected ? (
                                       <p className="text-[10px] text-tt-green flex items-center gap-1">
                                           <CheckCircle size={10} /> Connected as {user.googleIntegration.email}
                                       </p>
                                   ) : (
-                                      <p className="text-[10px] opacity-70">Not connected</p>
+                                      <p className="text-[10px] opacity-70">Sync real events automatically</p>
                                   )}
                               </div>
                           </div>
                       </div>
                       
                       {user?.googleIntegration?.isConnected ? (
-                          <div className="space-y-2">
+                          <div className="space-y-2 mt-auto">
                               <p className="text-[10px] opacity-60">Last Synced: {user.googleIntegration.lastSync ? new Date(user.googleIntegration.lastSync).toLocaleString() : 'Never'}</p>
                               <div className="flex gap-2">
-                                  <button onClick={syncGoogleCalendar} className="flex-1 bg-black/20 hover:bg-black/30 text-current text-xs py-2 rounded-lg flex items-center justify-center gap-2">
+                                  <button onClick={syncGoogleCalendar} className="flex-1 bg-black/20 border border-gray-600/50 hover:bg-black/30 text-current text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-2 transition-colors">
                                       <RefreshCw size={12} className={integrationLoading ? "animate-spin" : ""} /> Sync Now
                                   </button>
-                                  <button onClick={handleGoogleDisconnect} className="bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs px-3 py-2 rounded-lg" title="Disconnect">
+                                  <button onClick={handleGoogleDisconnect} className="bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs px-3 py-2 rounded-lg transition-colors border border-red-500/20" title="Disconnect">
                                       <Unlink size={16} />
                                   </button>
                               </div>
@@ -1194,7 +1198,7 @@ const Profile = () => {
                           <button 
                             onClick={handleGoogleConnect} 
                             disabled={integrationLoading}
-                            className="w-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-2"
+                            className="w-full bg-blue-600 hover:bg-blue-500 mt-auto text-white text-xs font-bold py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-md"
                           >
                               {integrationLoading ? 'Connecting...' : 'Connect Account'}
                           </button>
@@ -1209,16 +1213,22 @@ const Profile = () => {
                                   <MessageSquare className="text-white" size={20} />
                               </div>
                               <div>
-                                  <h4 className="font-bold text-current text-sm">Email Summary</h4>
-                                  <p className="text-[10px] opacity-70">Export weekly timetable</p>
+                                  <h4 className="font-bold text-current text-sm">Automatic Daily Summary</h4>
+                                  <p className="text-[10px] opacity-70">Get your day's schedule via Email</p>
                               </div>
                           </div>
+                          <button 
+                              onClick={toggleAutomaticDailySummary}
+                              className={`w-10 h-5 rounded-full relative transition-colors ${user?.automaticDailySummaryEnabled ? 'bg-tt-blue' : 'bg-gray-700'}`}
+                          >
+                              <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${user?.automaticDailySummaryEnabled ? 'left-5' : 'left-0.5'}`}></span>
+                          </button>
                       </div>
                       <button 
                         onClick={handleEmailSummary} 
-                        className="w-full bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-2"
+                        className="w-full bg-purple-600 border border-purple-500/50 hover:bg-purple-500 mt-auto text-white text-xs font-bold py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-md"
                       >
-                          Send Summary
+                          Send Manual Summary Now
                       </button>
                   </div>
 
@@ -1251,9 +1261,9 @@ const Profile = () => {
                               ) : (
                                   <button 
                                     onClick={handleInstallClick}
-                                    className="w-full bg-black/20 border border-gray-600/50 hover:bg-black/30 text-current text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-2"
+                                    className="w-full bg-black/20 border border-gray-600/50 hover:bg-black/30 text-current text-sm font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors"
                                   >
-                                      <Download size={14} /> Add to Home Screen
+                                      <Download size={16} /> Download App
                                   </button>
                               )}
                           </div>

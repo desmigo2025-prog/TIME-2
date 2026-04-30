@@ -30,6 +30,7 @@
             "subscription_active": { "type": "boolean" },
             "subscription_date": { "type": "string", "format": "date-time" },
             "emailSummaryUsed": { "type": "boolean" },
+            "automaticDailySummaryEnabled": { "type": "boolean" },
             "daily_message_count": { "type": "number" },
             "daily_file_upload_count": { "type": "number" },
             "daily_link_count": { "type": "number" },

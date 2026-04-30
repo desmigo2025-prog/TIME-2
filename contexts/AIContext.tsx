@@ -521,7 +521,7 @@ export const AIProvider = ({ children }: { children?: ReactNode }) => {
             // Handle Tool Calls
             let aiText = parsedResponse.text || "";
             let groundingData = undefined;
-            let suggestedAnswers: string[] | undefined = undefined;
+            let suggestedAnswers: string[] | undefined = (parsedResponse as any).suggestedAnswers;
 
             const toolCalls = response.functionCalls;
             
@@ -749,10 +749,6 @@ export const AIProvider = ({ children }: { children?: ReactNode }) => {
                         
                         aiText += `Okay, I will remind you to "${args.message}" in ${delayMins} minutes. `;
                         logAction('scheduleReminder', `Scheduled reminder: "${args.message}" in ${delayMins} mins`);
-                    } else if (call.name === 'askUserPreference') {
-                        const args = call.args as any;
-                        aiText += args.question;
-                        suggestedAnswers = args.suggestedAnswers;
                     } else if (call.name === 'navigateApp') {
                         const args = call.args as any;
                         const page = args.page.toLowerCase();
