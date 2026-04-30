@@ -376,7 +376,15 @@ export const AIProvider = ({ children }: { children?: ReactNode }) => {
         utterance.onerror = () => setIsSpeaking(false);
         
         const voices = window.speechSynthesis.getVoices();
-        const preferredVoice = voices.find(v => v.lang.includes('en') && v.name.includes('Google')) || voices[0];
+        let preferredVoice = voices[0];
+        const avatarType = user?.aiSettings?.aiAvatarType || 'girl';
+        
+        if (avatarType === 'boy') {
+            preferredVoice = voices.find(v => v.lang.includes('en') && (v.name.toLowerCase().includes('male') || v.name.includes('Google UK English Male'))) || voices[0];
+        } else {
+            preferredVoice = voices.find(v => v.lang.includes('en') && (v.name.toLowerCase().includes('female') || v.name.includes('Google UK English Female') || v.name.includes('Google US English'))) || voices.find(v => v.lang.includes('en') && v.name.includes('Google')) || voices[0];
+        }
+
         if (preferredVoice) utterance.voice = preferredVoice;
 
         utterance.rate = 1.0;

@@ -67,7 +67,7 @@ export const sendSmartNotification = async (title: string, body: string, tag: st
     }
 };
 
-export const playVoiceReminder = (userName: string, taskTitle: string) => {
+export const playVoiceReminder = (userName: string, taskTitle: string, avatarType?: 'robot' | 'boy' | 'girl') => {
     if ('speechSynthesis' in window) {
         // Cancel any currently playing speech to avoid overlap
         window.speechSynthesis.cancel();
@@ -93,9 +93,15 @@ export const playVoiceReminder = (userName: string, taskTitle: string) => {
 
         const utterance = new SpeechSynthesisUtterance(cleanText);
         
-        // Select a pleasant voice if available
         const voices = window.speechSynthesis.getVoices();
-        const preferredVoice = voices.find(v => v.lang.includes('en') && v.name.includes('Google')) || voices[0];
+        let preferredVoice = voices[0];
+        
+        if (avatarType === 'boy') {
+            preferredVoice = voices.find(v => v.lang.includes('en') && (v.name.toLowerCase().includes('male') || v.name.includes('Google UK English Male'))) || voices[0];
+        } else {
+            preferredVoice = voices.find(v => v.lang.includes('en') && (v.name.toLowerCase().includes('female') || v.name.includes('Google UK English Female') || v.name.includes('Google US English'))) || voices.find(v => v.lang.includes('en') && v.name.includes('Google')) || voices[0];
+        }
+
         if (preferredVoice) utterance.voice = preferredVoice;
 
         utterance.rate = 1.0;

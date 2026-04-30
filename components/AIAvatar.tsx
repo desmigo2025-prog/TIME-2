@@ -188,65 +188,34 @@ const AIAvatar: React.FC<AIAvatarProps> = ({
     );
 
     const renderGirl = () => (
-        <svg viewBox={viewMode === 'full' ? "0 0 100 200" : "0 0 100 100"} className="w-full h-full z-10 block drop-shadow-md overflow-visible">
-            <defs>
-                <linearGradient id="skinGirl" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stopColor="#ffe0c8" />
-                    <stop offset="100%" stopColor="#f0b691" />
-                </linearGradient>
-                <linearGradient id="hairGirl" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#4A3B32" />
-                    <stop offset="100%" stopColor="#2D231E" />
-                </linearGradient>
-                <linearGradient id="shirtGirl" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stopColor="#0EA5E9" />
-                    <stop offset="100%" stopColor="#0369A1" />
-                </linearGradient>
-            </defs>
-
-            <motion.g animate={bodyMovement} transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}>
-                {viewMode === 'full' ? (
-                    <>
-                        {/* Legs */}
-                        <rect x="38" y="140" width="10" height="55" fill="#f0b691" rx="4" />
-                        <rect x="52" y="140" width="10" height="55" fill="#f0b691" rx="4" />
-                        {/* Skirt */}
-                        <path d="M 30 140 L 70 140 L 80 170 L 20 170 Z" fill="#0369A1" />
-                        {/* Arms */}
-                        <motion.rect x="22" y="80" width="10" height="45" fill="#f0b691" rx="5" animate={armMovementLeft} style={{ transformOrigin: '27px 85px' }} />
-                        <motion.rect x="68" y="80" width="10" height="45" fill="#f0b691" rx="5" animate={armMovementRight} style={{ transformOrigin: '73px 85px' }} />
-                        {/* Torso */}
-                        <rect x="32" y="80" width="36" height="65" fill="url(#shirtGirl)" rx="10" />
-                    </>
-                ) : (
-                    <>
-                        <path d="M 22 100 Q 50 75 78 100 Z" fill="url(#shirtGirl)" />
-                        <path d="M 40 100 Q 50 85 60 100 Z" fill="#FFFFFF" opacity="0.9" />
-                    </>
-                )}
-
-                <motion.g animate={headMovement} transition={headTransition} style={{ transformOrigin: '50% 60%' }} transform={viewMode === 'full' ? "translate(0, 5)" : ""}>
-                    {/* Head & Neck */}
-                    <rect x="44" y={viewMode === 'full' ? "65" : "62"} width="12" height="15" fill="#d99f71" rx="4" />
-                    <rect x="32" y={viewMode === 'full' ? "28" : "24"} width="36" height="44" rx="18" fill="url(#skinGirl)" />
-                    
-                    {/* Hair */}
-                    <path d={viewMode === 'full' ? "M 20 44 Q 50 4 80 44 L 80 84 Q 50 94 20 84 Z" : "M 20 40 Q 50 0 80 40 L 80 80 Q 50 90 20 80 Z"} fill="url(#hairGirl)" />
-                    <path d={viewMode === 'full' ? "M 30 42 Q 50 22 70 42 Q 65 26 50 26 Q 35 26 30 42 Z" : "M 30 38 Q 50 18 70 38 Q 65 22 50 22 Q 35 22 30 38 Z"} fill="url(#hairGirl)" />
-                    
-                    {/* Eyes & Mouth */}
-                    <motion.circle cx="41" cy={viewMode === 'full' ? "51" : "46"} r="2.5" fill="#1E293B" />
-                    <motion.circle cx="59" cy={viewMode === 'full' ? "51" : "46"} r="2.5" fill="#1E293B" />
-                    {activeIsSpeaking ? (
-                        <motion.path d={phonemeM} stroke="#D946EF" strokeWidth="2.5" strokeLinecap="round" fill="none" transform={viewMode === 'full' ? "translate(0, 5)" : ""}
-                            animate={humanMouthSpeaking} transition={{ repeat: Infinity, duration: 1.1, times: [0, 0.1, 0.3, 0.5, 0.7, 0.8, 0.9, 1], ease: "linear" }} />
-                    ) : (
-                        <motion.path d={getMouthPath()} stroke="#d59972" strokeWidth="2" strokeLinecap="round" fill="none" transform={viewMode === 'full' ? "translate(0, 5)" : ""} animate={{ d: getMouthPath() }} />
-                    )}
-                </motion.g>
-            </motion.g>
-        </svg>
+        <div className="w-full h-full relative overflow-visible flex items-center justify-center">
+            <img 
+                src="/girl-avatar.png" 
+                onError={(e) => {
+                    // Fallback professional female portrait from Unsplash if the local image is not found
+                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=500&auto=format&fit=crop&q=80';
+                }}
+                alt="AI Girl Avatar" 
+                className={`z-10 ${viewMode === 'full' ? 'max-h-[120%] w-auto object-contain object-bottom drop-shadow-2xl' : 'w-full h-full object-cover rounded-full'}`}
+                style={viewMode === 'full' ? { position: 'absolute', bottom: '-10%' } : {}}
+            />
+            {activeIsSpeaking && (
+                <motion.div 
+                    className={`absolute inset-0 rounded-full ${viewMode === 'circle' ? 'border-2 border-tt-blue' : ''}`}
+                    animate={viewMode === 'circle' ? { 
+                        scale: [1, 1.05, 1],
+                        opacity: [0.5, 1, 0.5]
+                    } : {}}
+                    transition={{ 
+                        repeat: Infinity, 
+                        duration: 1.5,
+                        ease: "easeInOut" 
+                    }}
+                />
+            )}
+        </div>
     );
+
 
     const renderRobot = () => (
         <svg viewBox={viewMode === 'full' ? "0 0 100 200" : "0 0 100 100"} className="w-full h-full z-10 block drop-shadow-md overflow-visible">

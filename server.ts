@@ -15,53 +15,54 @@ app.use(express.json());
 
 // Initialize Firebase Admin
 let adminInitialized = false;
-try {
-  if (process.env.FIREBASE_SERVICE_ACCOUNT && process.env.FIREBASE_SERVICE_ACCOUNT.trim() !== '') {
-    let rawJson = process.env.FIREBASE_SERVICE_ACCOUNT.trim();
-    
-    // Strip surrounding quotes if accidentally included
-    if ((rawJson.startsWith("'") && rawJson.endsWith("'")) || (rawJson.startsWith('"') && rawJson.endsWith('"'))) {
-      rawJson = rawJson.slice(1, -1);
-    }
-
-    // Attempt base64 decode if it doesn't look like JSON
-    if (!rawJson.startsWith('{')) {
-      try {
-        const decoded = Buffer.from(rawJson, 'base64').toString('utf-8');
-        if (decoded.trim().startsWith('{')) {
-          rawJson = decoded.trim();
-        }
-      } catch (e) {
-        // ignore base64 error
+function getFirebaseAdmin() {
+  if (!adminInitialized) {
+    if (process.env.FIREBASE_SERVICE_ACCOUNT && process.env.FIREBASE_SERVICE_ACCOUNT.trim() !== '') {
+      let rawJson = process.env.FIREBASE_SERVICE_ACCOUNT.trim();
+      
+      // Strip surrounding quotes if accidentally included
+      if ((rawJson.startsWith("'") && rawJson.endsWith("'")) || (rawJson.startsWith('"') && rawJson.endsWith('"'))) {
+        rawJson = rawJson.slice(1, -1);
       }
-    }
 
-    // Fix escaped newlines
-    rawJson = rawJson.replace(/\\\\n/g, '\\n');
-
-    let serviceAccount;
-    try {
+      // Attempt base64 decode if it doesn't look like JSON
       if (!rawJson.startsWith('{')) {
-        throw new Error("Does not start with {");
+        try {
+          const decoded = Buffer.from(rawJson, 'base64').toString('utf-8');
+          if (decoded.trim().startsWith('{')) {
+            rawJson = decoded.trim();
+          }
+        } catch (e) {
+          // ignore base64 error
+        }
       }
-      serviceAccount = JSON.parse(rawJson);
-    } catch (parseError) {
-      console.error("❌ Invalid FIREBASE_SERVICE_ACCOUNT format.");
-      console.error("It looks like you pasted the Firebase setup code or invalid data instead of the actual JSON.");
-      console.error("To fix this, open the service account .json file you downloaded from Firebase, copy the raw JSON contents starting with '{', and paste that into your FIREBASE_SERVICE_ACCOUNT environment variable.");
-      throw new Error("Invalid FIREBASE_SERVICE_ACCOUNT JSON");
-    }
 
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount)
-    });
-    adminInitialized = true;
-    console.log("Firebase Admin initialized successfully.");
-  } else {
-    console.warn("FIREBASE_SERVICE_ACCOUNT not found or empty. Backend Firebase operations will be mocked.");
+      // Fix escaped newlines
+      rawJson = rawJson.replace(/\\\\n/g, '\\n');
+
+      let serviceAccount;
+      try {
+        if (!rawJson.startsWith('{')) {
+          throw new Error("Does not start with {");
+        }
+        serviceAccount = JSON.parse(rawJson);
+      } catch (parseError) {
+        console.error("❌ Invalid FIREBASE_SERVICE_ACCOUNT format.");
+        console.error("It looks like you pasted the Firebase setup code or invalid data instead of the actual JSON.");
+        console.error("To fix this, open the service account .json file you downloaded from Firebase, copy the raw JSON contents starting with '{', and paste that into your FIREBASE_SERVICE_ACCOUNT environment variable.");
+        throw Error("Invalid FIREBASE_SERVICE_ACCOUNT JSON");
+      }
+
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+      });
+      adminInitialized = true;
+      console.log("Firebase Admin initialized successfully.");
+    } else {
+      throw Error("FIREBASE_SERVICE_ACCOUNT not found or empty. Backend Firebase operations will be mocked.");
+    }
   }
-} catch (error: any) {
-  console.error("Failed to initialize Firebase Admin:", error.message || error);
+  return admin;
 }
 
 // Helper to get redirect URI
@@ -179,15 +180,16 @@ app.post("/api/verify-payment", async (req, res) => {
 
     if (data.status && data.data.status === "success") {
       // Payment is successful, update user in Firestore
-      if (adminInitialized) {
-        const db = admin.firestore();
+      try {
+        const firebaseAdmin = getFirebaseAdmin();
+        const db = firebaseAdmin.firestore();
         await db.collection("users").doc(userId).update({
           "user.pro_status": true,
           "user.subscription_active": true,
           "user.subscription_date": new Date().toISOString()
         });
-      } else {
-        console.warn("Firebase Admin not initialized. Cannot update user in Firestore.");
+      } catch (adminError) {
+        console.warn("Firebase Admin not initialized. Cannot update user in Firestore.", adminError);
       }
 
       return res.json({ success: true, message: "Payment verified and user updated." });

@@ -192,7 +192,7 @@ export const TaskProvider = ({ children }: { children?: ReactNode }) => {
                     
                     sendPushNotification(task);
                     if (user?.username) {
-                        playVoiceReminder(user.username, task.title);
+                        playVoiceReminder(user.username, task.title, user.aiSettings?.aiAvatarType);
                     }
                     setLastNotifiedTaskId(task.id);
                     
