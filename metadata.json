@@ -1,6 +1,6 @@
 {
-  "name": "Remix 2",
-  "description": "A futuristic smart timetable management application powered by AI to organize your life, studies, and work efficiently.",
+  "name": "TT APP",
+  "description": "AI Study Assistant - Plan. Learn. Focus. Achieve. Your Smart Study Companion Powered by AI.",
   "requestFramePermissions": [
     "microphone"
   ]

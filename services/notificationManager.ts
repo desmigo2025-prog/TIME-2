@@ -73,22 +73,36 @@ export const playVoiceReminder = (userName: string, taskTitle: string, avatarTyp
         window.speechSynthesis.cancel();
 
         const text = `Hello ${userName}, time is up for you to take on ${taskTitle}.`;
-        let cleanText = text
-            .replace(/\*\*/g, '')
+        
+        let cleanText = text;
+        cleanText = cleanText.replace(/https?:\/\/[^\s]+/g, "a link");
+        cleanText = cleanText.replace(/www\.[^\s]+/g, "a link");
+        cleanText = cleanText.replace(/```[\s\S]*?```/g, ". [A code snippet was provided]. ");
+        cleanText = cleanText.replace(/`([^`]+)`/g, "$1");
+        cleanText = cleanText.replace(/\*\*/g, '')
             .replace(/__/g, '')
             .replace(/~~/g, '')
             .replace(/\*(?!\s)([^*]*[^\s*])\*/g, '$1')
             .replace(/_(?!\s)([^_]*[^\s_])_/g, '$1')
             .replace(/(^|\n)#+\s*/g, '$1')
-            .replace(/(^|\n)\s*[-•o*]\s+/g, '$1')
-            .replace(/`/g, '')
-            .replace(/<[^>]*>/g, '')
-            .replace(/\n+/g, '. ')
+            .replace(/(^|\n)\s*[-•o*\d+]\.?\s+/g, '$1. ')
+            .replace(/<[^>]*>/g, '');
+        cleanText = cleanText.replace(/\$([\d,]+(?:\.\d+)?)/g, '$1 dollars ')
+            .replace(/&/g, ' and ')
+            .replace(/%/g, ' percent ')
+            .replace(/\[|\]|\{|\}|\\/g, ' ')
+            .replace(/"([^"]*)"/g, '$1')
+            .replace(/-{2,}/g, ' ')
+            .replace(/_{2,}/g, ' ');
+        cleanText = cleanText.replace(/\t/g, ' ')
+            .replace(/\n\n+/g, '... ')
+            .replace(/\n/g, ', ');
+        cleanText = cleanText.replace(/\s+/g, ' ')
             .replace(/\s+\./g, '.')
+            .replace(/\s+,/g, ',')
             .replace(/([?!])\./g, '$1')
-            .replace(/\.{2,}/g, (match) => match.length === 2 ? '.' : match)
+            .replace(/\.{2,}/g, '...')
             .replace(/[\u200B-\u200D\uFEFF]/g, '')
-            .replace(/\s+/g, ' ')
             .trim();
 
         const utterance = new SpeechSynthesisUtterance(cleanText);

@@ -54,11 +54,19 @@ const AppContent = () => {
             document.body.classList.add('custom-theme');
             document.body.style.setProperty('--custom-theme-color', user.aiSettings.customThemeColor);
             
-            // Calculate brightness
-            const hex = user.aiSettings.customThemeColor.replace('#', '');
-            const r = parseInt(hex.substr(0, 2), 16);
-            const g = parseInt(hex.substr(2, 2), 16);
-            const b = parseInt(hex.substr(4, 2), 16);
+            // Calculate brightness safely
+            let r = 0, g = 0, b = 0;
+            const hexMatch = user.aiSettings.customThemeColor.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+            if (hexMatch) {
+                r = parseInt(hexMatch[1], 16);
+                g = parseInt(hexMatch[2], 16);
+                b = parseInt(hexMatch[3], 16);
+            } else if (user.aiSettings.customThemeColor === 'white' || user.aiSettings.customThemeColor.includes('light')) {
+                r = 255; g = 255; b = 255;
+            } else {
+                // Default to a dark baseline for unknown names like 'red' if no hex match
+                r = 0; g = 0; b = 0;
+            }
             const brightness = ((r * 299) + (g * 587) + (b * 114)) / 1000;
             
             if (brightness > 155) {
@@ -68,8 +76,9 @@ const AppContent = () => {
                 document.body.style.setProperty('--custom-text-color', '#ffffff');
                 document.body.style.setProperty('--custom-glass-bg', 'rgba(0, 0, 0, 0.3)');
             }
-        } else if (theme !== 'dark') {
-            document.body.classList.add(`${theme}-theme`);
+        } else if (theme && theme !== 'dark') {
+            const cleanTheme = theme.replace(/\s+/g, '-');
+            document.body.classList.add(`${cleanTheme}-theme`);
         }
     }, [user?.aiSettings?.theme, user?.aiSettings?.natureThemeEnabled, user?.aiSettings?.customThemeColor]);
 

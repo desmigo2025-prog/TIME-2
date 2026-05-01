@@ -59,6 +59,7 @@
         color: #ffffff;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+        transition: background 0.5s ease, background-color 0.5s ease, color 0.5s ease;
       }
       /* Custom Scrollbar */
       ::-webkit-scrollbar {
@@ -81,6 +82,10 @@
         -webkit-backdrop-filter: blur(16px);
         border: 1px solid rgba(255, 255, 255, 0.08);
         box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        transition: background 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease;
+      }
+      * {
+        transition: background-color 0.3s ease, border-color 0.3s ease;
       }
       body.nature-theme {
         background: linear-gradient(135deg, rgba(220,80,80,0.6), rgba(70,130,180,0.6), rgba(100,180,100,0.6), rgba(255,215,100,0.6));

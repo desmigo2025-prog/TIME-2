@@ -341,32 +341,49 @@ export const AIProvider = ({ children }: { children?: ReactNode }) => {
         window.speechSynthesis.cancel();
         
         // Clean text for natural speech
-        let cleanText = text
-            // Remove markdown formatting characters (bold, strikethrough)
-            .replace(/\*\*/g, '')
+        let cleanText = text;
+        
+        // 1. Remove URLs
+        cleanText = cleanText.replace(/https?:\/\/[^\s]+/g, "a link");
+        cleanText = cleanText.replace(/www\.[^\s]+/g, "a link");
+        
+        // 2. Remove Code Blocks (summarize)
+        cleanText = cleanText.replace(/```[\s\S]*?```/g, ". [A code snippet was provided]. ");
+        
+        // 3. Remove inline code
+        cleanText = cleanText.replace(/`([^`]+)`/g, "$1");
+
+        // 4. Remove Markdown formatting characters
+        cleanText = cleanText.replace(/\*\*/g, '')
             .replace(/__/g, '')
             .replace(/~~/g, '')
-            // Remove italic asterisks and underscores, but keep math (e.g., 3 * 4)
             .replace(/\*(?!\s)([^*]*[^\s*])\*/g, '$1')
             .replace(/_(?!\s)([^_]*[^\s_])_/g, '$1')
-            // Remove headers (#)
             .replace(/(^|\n)#+\s*/g, '$1')
-            // Remove bullet points (*, -, •, o) at the start of lines or after spaces
-            .replace(/(^|\n)\s*[-•o*]\s+/g, '$1')
-            // Remove code block backticks
-            .replace(/`/g, '')
-            // Remove HTML tags
-            .replace(/<[^>]*>/g, '')
-            // Replace newlines and extra line breaks with a period to ensure a natural pause
-            .replace(/\n+/g, '. ')
-            // Clean up multiple punctuation marks created by the newline replacement, but preserve ellipsis
+            .replace(/(^|\n)\s*[-•o*\d+]\.?\s+/g, '$1. ') // Remove bullet points or numbered lists safely
+            .replace(/<[^>]*>/g, '');
+
+        // 5. Transform Number & Symbols to naturally spoken words
+        cleanText = cleanText.replace(/\$([\d,]+(?:\.\d+)?)/g, '$1 dollars ')
+            .replace(/&/g, ' and ')
+            .replace(/%/g, ' percent ')
+            .replace(/\[|\]|\{|\}|\\/g, ' ')
+            .replace(/"([^"]*)"/g, '$1')
+            .replace(/-{2,}/g, ' ')
+            .replace(/_{2,}/g, ' ');
+            
+        // 6. Handle tabs and newlines, adding natural pauses
+        cleanText = cleanText.replace(/\t/g, ' ')
+            .replace(/\n\n+/g, '... ') // Longer pause for paragraph break
+            .replace(/\n/g, ', '); // Brief pause for line break
+
+        // 7. Context-Aware punctuation adjustments and Cleanup extra spaces
+        cleanText = cleanText.replace(/\s+/g, ' ')
             .replace(/\s+\./g, '.')
+            .replace(/\s+,/g, ',')
             .replace(/([?!])\./g, '$1')
-            .replace(/\.{2,}/g, (match) => match.length === 2 ? '.' : match)
-            // Remove invisible characters
+            .replace(/\.{2,}/g, '...') // Normalise to ellipsis for natural pauses
             .replace(/[\u200B-\u200D\uFEFF]/g, '')
-            // Remove extra spaces
-            .replace(/\s+/g, ' ')
             .trim();
 
         const utterance = new SpeechSynthesisUtterance(cleanText);
@@ -447,6 +464,8 @@ export const AIProvider = ({ children }: { children?: ReactNode }) => {
 
         try {
             // Context Building
+            const currentHashPath = window.location.hash.replace('#', '') || '/';
+            const currentTheme = user?.aiSettings?.theme || (user?.aiSettings?.natureThemeEnabled ? 'nature' : 'dark');
             const relevantTasks = tasks.filter(t => t.status === TaskStatus.PENDING || t.status === TaskStatus.MISSED);
             const taskSummary = relevantTasks.map(t => `[ID: ${t.id}] ${t.title} at ${t.time} for ${t.durationMinutes}m (${t.day}${t.date ? `, ${t.date}` : ''}) [Status: ${t.status}]`).join(", ");
             const lectureSummary = lectures.map(l => `ID: ${l.id}, Title: ${l.title}`).join("; ");
@@ -481,7 +500,7 @@ export const AIProvider = ({ children }: { children?: ReactNode }) => {
                 .sort((a, b) => a.daysRemaining - b.daysRemaining);
             const examSummary = upcomingExamsList.map(e => `${e.subjects.join(', ')} in ${e.daysRemaining} days`).join('; ');
 
-            const context = `User: ${user?.username}. Current Time: ${format(new Date(), 'EEEE HH:mm')}. Upcoming Tasks: ${taskSummary || "None"}. Saved Lectures: ${lectureSummary || "None"}. Performance: ${performanceSummary}. Upcoming Exams: ${examSummary || "None"}.`;
+            const context = `User: ${user?.username}. Current Time: ${format(new Date(), 'EEEE HH:mm')}. Current Page: ${currentHashPath}. Current Theme: ${currentTheme}. Upcoming Tasks: ${taskSummary || "None"}. Saved Lectures: ${lectureSummary || "None"}. Performance: ${performanceSummary}. Upcoming Exams: ${examSummary || "None"}.`;
             
             // Format History for Gemini
             const history = messages.slice(-10).map(m => ({
@@ -766,11 +785,39 @@ export const AIProvider = ({ children }: { children?: ReactNode }) => {
                     } else if (call.name === 'updateUserSettings') {
                         const args = call.args as any;
                         const settings = args.settings;
+                        const generalSettings = args.generalSettings;
                         if (user) {
-                            const newSettings = { ...user.aiSettings, ...settings };
-                            await updateProfile({ aiSettings: newSettings });
-                            aiText += `I've updated your settings. `;
-                            logAction('updateUserSettings', `Updated settings: ${JSON.stringify(settings)}`);
+                            let aiTextUpdate = "";
+                            const profileUpdate: any = {};
+                            if (settings) {
+                                // Robustness: If AI passes a hex color directly to `theme` or a color name not in the enum
+                                const predefinedThemes = ['dark', 'light', 'nature', 'ocean', 'sunset', 'ladies', 'white', 'custom'];
+                                if (settings.theme && !predefinedThemes.includes(settings.theme)) {
+                                    if (settings.theme.startsWith('#')) {
+                                        settings.customThemeColor = settings.theme;
+                                    } else {
+                                        // It's a named color we don't have a CSS class for, pass it to customThemeColor and the browser will try to render it or fail back gracefully, but usually Hex is passed.
+                                        settings.customThemeColor = settings.theme; 
+                                    }
+                                    settings.theme = 'custom';
+                                }
+                                profileUpdate.aiSettings = { ...user.aiSettings, ...settings };
+                            }
+                            if (generalSettings && typeof generalSettings.backgroundAlertsEnabled !== 'undefined') {
+                                profileUpdate.backgroundAlertsEnabled = generalSettings.backgroundAlertsEnabled;
+                            }
+                            try {
+                                await updateProfile(profileUpdate);
+                                if (settings?.theme || settings?.customThemeColor) {
+                                    aiText += `Theme updated successfully. `;
+                                } else {
+                                    aiText += `I've updated your settings. `;
+                                }
+                                logAction('updateUserSettings', `Updated settings`);
+                            } catch (error) {
+                                console.error("Theme/Settings update failed:", error);
+                                aiText += `I'm sorry, I couldn't update the theme due to an error. `;
+                            }
                         } else {
                             aiText += `I couldn't update your settings because you are not logged in. `;
                         }

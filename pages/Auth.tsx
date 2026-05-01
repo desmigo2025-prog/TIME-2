@@ -105,11 +105,15 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-tt-dark p-4 relative overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-tt-blue/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-tt-red/20 rounded-full blur-3xl animate-pulse"></div>
+    <div 
+      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+      style={{ backgroundImage: "url('/bg.png'), url('/bg.webp'), url('/bg.jpg')", backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat", backgroundColor: "#0F172A" }}
+    >
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] z-0"></div>
+        <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-tt-blue/20 rounded-full blur-3xl animate-pulse z-0"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-tt-red/20 rounded-full blur-3xl animate-pulse z-0"></div>
 
-      <div className="glass-panel w-full max-w-md p-8 rounded-3xl shadow-2xl z-10 border border-gray-700/50">
+      <div className="glass-panel w-full max-w-md p-8 rounded-3xl shadow-2xl z-10 border border-gray-700/50 relative">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
               <div className="bg-gradient-to-br from-tt-blue to-cyan-500 p-3 rounded-xl shadow-lg shadow-tt-blue/20">

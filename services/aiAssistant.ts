@@ -202,10 +202,19 @@ const updateUserSettingsTool = {
                 settings: {
                     type: "object",
                     properties: {
-                        theme: { type: "string", description: "Theme name (e.g., 'dark', 'light', 'nature', 'ocean', 'sunset', 'ladies', 'white')" },
+                        theme: { type: "string", description: "Theme name (e.g., 'dark', 'light', 'nature', 'ocean', 'sunset', 'ladies', 'white'). If the user asks for a specific color like purple or red, set this to 'custom'." },
+                        customThemeColor: { type: "string", description: "Hex color code for the custom theme (e.g., '#8A2BE2' for purple). ONLY use this if theme is 'custom'." },
                         voiceResponseEnabled: { type: "boolean", description: "Enable or disable voice responses" },
                         backgroundEnabled: { type: "boolean", description: "Enable or disable background execution" },
-                        dynamicGreetingsEnabled: { type: "boolean", description: "Enable or disable dynamic greetings" }
+                        dynamicGreetingsEnabled: { type: "boolean", description: "Enable or disable dynamic greetings" },
+                        aiControlEnabled: { type: "boolean", description: "Enable or disable AI App Control" },
+                        showFloatingAvatar: { type: "boolean", description: "Enable or disable the floating AI avatar" }
+                    }
+                },
+                generalSettings: {
+                    type: "object",
+                    properties: {
+                        backgroundAlertsEnabled: { type: "boolean", description: "Enable or disable push notifications" }
                     }
                 }
             },
@@ -312,13 +321,13 @@ export class AIAssistantService {
             8. Move/Reschedule Tasks: If the user asks to move, reschedule, or shift tasks, use the 'updateTasks' tool. Check for time conflicts and suggest an alternative time if there is an overlap.
             9. Missed Tasks: If the user missed a task, suggest rescheduling it to their next free time today or the next available day. Use 'updateTasks' to reschedule.
             10. Navigate App: If the user asks to go to a specific page or feature (e.g., "go to exam mode", "open flashcards", "show my tasks", "open notifications", "go to calendar", "my profile"), use 'navigateApp'.
-            11. Update Settings: If the user asks to change their theme (e.g. "dark blue theme"), voice settings, or background execution, use 'updateUserSettings'. ALWAYS ask for confirmation before changing settings.
+            11. Update Settings: If the user asks to change their theme (e.g. "dark blue theme", "purple theme", "light mode"), use 'updateUserSettings'. For specific unlisted colors, set theme to 'custom' and provide the HEX code in 'customThemeColor'. ALWAYS ask for confirmation before changing sensitive settings, but for themes, apply them instantly!
             12. Lecture Recording: If the user asks to start or stop recording a lecture, use 'startLectureRecording' or 'stopLectureRecording'.
             13. Study Predictor & Exams: If the user asks "What should I study today?", "Prepare me for next week's exams", "What am I weak at?", use 'analyzeStudyPredictor'.
             14. Focus Mode: If the user asks to start a focus session, study session, or pomodoro timer (e.g., "Start a 25-minute focus session"), use 'startFocusMode'. If they want to stop, use 'stopFocusMode'.
-            15. Multi-Step Execution: You can execute multiple tools and commands at once if the user asks for a complex workflow. For example, "Prepare me for exams" might involve analyzing the predictor, generating a timetable, and setting reminders. Just process their request natively. You have access to the user's task context.
+            15. Multi-Step Execution: You can execute multiple tools and commands at once if the user asks for a complex workflow. For example, "Enable focus mode, switch to dark theme, and open my timetable" -> You must invoke 'startFocusMode', 'updateUserSettings', and 'navigateApp' all at once.
             16. File & Data Intelligence: You will receive text content representing uploaded notes, PDFs, or images if the user attaches them. Deeply analyze the information to extract Dates, Subjects, Deadlines, Locations, and Time blocks. Use this data to accurately answer questions or actively generate tasks and study plans.
-            17. Strict Confirmation Control: For sensitive or bulk actions (deleting tasks, bulk modifications, changing settings), you MUST first ask the user for confirmation (e.g. "Are you sure you want to delete all your current tasks?") AND WAIT for their affirmative reply in the next turn BEFORE actually invoking the tool. DO NOT invoke the tool natively in the same turn you ask for confirmation.
+            17. Strict Confirmation Control: For sensitive or bulk actions (deleting tasks, bulk modifications), you MUST first ask the user for confirmation and WAIT for their reply BEFORE invoking the tool. DO NOT invoke the tool natively in the same turn you ask for confirmation. EXCEPTION: Theme changes and navigating the app are safe and MUST BE EXECUTED INSTANTLY without confirmation.
             
             OUTPUT FORMAT:
             You must return your conversational response as a JSON object (unless you are ONLY calling a tool). 
@@ -331,6 +340,14 @@ export class AIAssistantService {
               "priority": "low | medium | high",
               "suggestedAnswers": ["Option 1"]
             }
+
+            SPEECH & TEXT FORMATTING RULES:
+            - Write 'text' as if it will be spoken by a voice assistant.
+            - Do NOT include raw URLs, raw JSON, technical file paths, or excessive markdown symbols.
+            - If you must share a link or code, write a conversational summary in "text".
+            - Use natural human-like phrasing. Avoid overly technical robotic jargon.
+            - Keep responses concise when possible.
+            - Speak numbers naturally (e.g., "$10" as "ten dollars" logic is handled, but try to use words if better suited).
 
             TOOL CALLING:
             If you need to perform an action (e.g. navigateApp, updateTasks), just invoke the tool natively using your function calling capabilities. DO NOT output manual HTML/XML/function tags like <function=navigateApp>. Just call the function directly! If you call a function, the API will handle it.
@@ -402,7 +419,18 @@ export class AIAssistantService {
             console.error("AI Generation Error (Backend Connection Failed):", error);
             
             // Auto-recover from Groq tool parsing errors
-            const rawError = error?.error?.error || error?.error || error;
+            let rawError = error?.error?.error || error?.error || error;
+            
+            // Sometimes it's a string inside error.message
+            if (!rawError?.failed_generation && error?.message && error.message.includes('failed_generation')) {
+                try {
+                    const match = error.message.match(/400\s+(\{.*\})/);
+                    if (match && match[1]) {
+                        rawError = JSON.parse(match[1]).error || JSON.parse(match[1]);
+                    }
+                } catch(e){}
+            }
+
             if (rawError?.failed_generation && rawError?.code === "tool_use_failed") {
                 const failedGen = rawError.failed_generation as string;
                 console.log("Attempting to recover from failed_generation:", failedGen);
@@ -420,12 +448,15 @@ export class AIAssistantService {
                 }
 
                 // Extensible regex to capture <function=NAME{JSON}</function> or similar outputs
-                const looseRegex = /<function=([^>\{]+)\s*(\{.*?\})\s*(?:<\/function>|>|$)/is;
+                const looseRegex = /<function=([^>\[\{\s]+)\s*([\[\{].*?[\]\}])\s*(?:<\/function>|>|$)/is;
                 const match = failedGen.match(looseRegex);
                 if (match && match[1] && match[2]) {
                     const funcName = match[1].replace(/["']/g, '').trim(); // Remove rogue brackets or quotes
                     try {
-                        const funcArgs = JSON.parse(match[2]);
+                        let funcArgs = JSON.parse(match[2]);
+                        if (Array.isArray(funcArgs) && funcArgs.length > 0) {
+                            funcArgs = funcArgs[0];
+                        }
                         console.log("Recovered tool call:", funcName, funcArgs);
                         return {
                             text: textContent,
@@ -440,12 +471,15 @@ export class AIAssistantService {
                 }
                 
                 // Also handle cases where there are spaces, e.g. <function=askUserPreference {"question": "..."}>
-                const spaceRegex = /<function=([^>]+)(?:>|\s+)(\{.*?\})\s*(?:<\/function>|>|$)/is;
+                const spaceRegex = /<function=([^\[\{\s>]+)(?:>|\s+)([\[\{].*?[\]\}])\s*(?:<\/function>|>|$)/is;
                 const spaceMatch = failedGen.match(spaceRegex);
                 if (spaceMatch && spaceMatch[1] && spaceMatch[2]) {
                     const funcName = spaceMatch[1].trim();
                     try {
-                        const funcArgs = JSON.parse(spaceMatch[2]);
+                        let funcArgs = JSON.parse(spaceMatch[2]);
+                        if (Array.isArray(funcArgs) && funcArgs.length > 0) {
+                            funcArgs = funcArgs[0];
+                        }
                         console.log("Recovered tool call (spaceMatch):", funcName, funcArgs);
                         return {
                             text: textContent,
