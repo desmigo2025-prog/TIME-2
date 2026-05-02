@@ -7,10 +7,11 @@ import { useUsage } from '../contexts/UsageContext';
 import { Task, TaskStatus } from '../types';
 import { Card } from '../components/ui/Card';
 import { parseTimetableWithGemini, getSmartSuggestions } from '../services/geminiService';
-import { Upload, Clock, MapPin, Calendar as CalendarIcon, ArrowRight, Loader, Info, Edit, Bell, Bot, X, Crown, AlertCircle } from 'lucide-react';
+import { Upload, Clock, MapPin, Calendar as CalendarIcon, ArrowRight, Loader, Info, Edit, Bell, Bot, X, Crown, AlertCircle, CheckCircle, Circle } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import UpgradeModal from '../components/UpgradeModal';
+import DailyProgress from '../components/DailyProgress';
 
 const Home = () => {
   const { user } = useAuth();
@@ -29,7 +30,7 @@ const Home = () => {
 
   const isLightTheme = theme === 'nature' || theme === 'ocean' || theme === 'sunset' || theme === 'ladies' || theme === 'white' || isCustomLight();
   const isCustomTheme = theme === 'custom';
-  const { tasks, upcomingTasks, ongoingTasks, exams, syncGoogleCalendar } = useTasks();
+  const { tasks, upcomingTasks, ongoingTasks, exams, syncGoogleCalendar, updateTask } = useTasks();
   const { unreadCount } = useAnnouncements();
   const { latestGreeting, dismissGreeting } = useAI();
   const { isPro, canUploadFile, incrementFileUpload, getUsageStats } = useUsage();
@@ -39,11 +40,26 @@ const Home = () => {
   const [aiTip, setAiTip] = useState("Loading insight...");
   const navigate = useNavigate();
 
+  // Daily Progress calculation
+  const currentDayName = format(currentTime, 'EEEE');
+  const todayTasks = tasks.filter(t => {
+      if (t.date) {
+         return t.date === format(currentTime, 'yyyy-MM-dd');
+      }
+      return t.day === currentDayName;
+  });
+  const validTasks = todayTasks; // include missed tasks
+  const completedTodayTasks = validTasks.filter(t => t.status === TaskStatus.COMPLETED);
+  const todaysProgress = validTasks.length > 0 ? Math.round((completedTodayTasks.length / validTasks.length) * 100) : 0;
+
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    getSmartSuggestions(upcomingTasks).then(setAiTip);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+      getSmartSuggestions(upcomingTasks, todaysProgress).then(setAiTip);
+  }, [todaysProgress]); // Re-fetch tip if progress makes a jump, or initially
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (isUploading) return;
@@ -86,8 +102,12 @@ const Home = () => {
     }
   };
 
+  const toggleStatus = (id: string, currentStatus: TaskStatus) => {
+      const newStatus = currentStatus === TaskStatus.COMPLETED ? TaskStatus.PENDING : TaskStatus.COMPLETED;
+      updateTask(id, { status: newStatus });
+  };
+
   // Filter and Sort All Upcoming Tasks
-  const currentDayName = format(currentTime, 'EEEE');
   const sortedUpcomingTasks = React.useMemo(() => {
     return tasks
       .filter(task => task.status !== TaskStatus.COMPLETED && task.status !== TaskStatus.MISSED)
@@ -143,16 +163,6 @@ const Home = () => {
 
   const nextExam = upcomingExams?.[0];
   const nextExamDays = nextExam ? Math.ceil((new Date(nextExam.date).getTime() - currentTime.getTime()) / (1000 * 60 * 60 * 24)) : null;
-
-  // Daily Progress calculation
-  const todayTasks = tasks.filter(t => {
-      if (t.date) {
-         return t.date === format(currentTime, 'yyyy-MM-dd');
-      }
-      return t.day === currentDayName;
-  });
-  const completedTodayTasks = todayTasks.filter(t => t.status === TaskStatus.COMPLETED);
-  const todaysProgress = todayTasks.length > 0 ? Math.round((completedTodayTasks.length / todayTasks.length) * 100) : 0;
 
   return (
     <div className="space-y-6 animate-fade-in relative">
@@ -271,22 +281,8 @@ const Home = () => {
       </div>
 
       {/* Daily Progress Bar */}
-      <div className="bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 rounded-3xl p-5 md:p-6 animate-slide-up shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-          <div className="flex justify-between items-end mb-3">
-              <div>
-                  <h3 className="font-black text-lg tracking-tight">Today's Progress</h3>
-                  <p className="text-sm opacity-60 font-medium">{completedTodayTasks.length} of {todayTasks.length} tasks completed</p>
-              </div>
-              <span className="font-black text-3xl text-tt-blue drop-shadow-sm tabular-nums">{todaysProgress}%</span>
-          </div>
-          <div className="h-3 w-full bg-black/10 dark:bg-white/10 rounded-full overflow-hidden shadow-inner">
-              <div 
-                  className="h-full bg-gradient-to-r from-tt-blue via-indigo-500 to-purple-500 rounded-full transition-all duration-1000 ease-out shadow-sm relative"
-                  style={{ width: `${todaysProgress}%` }}
-              >
-                  <div className="absolute inset-0 bg-white/20 animate-[pulse_2s_ease-in-out_infinite]"></div>
-              </div>
-          </div>
+      <div className="animate-slide-up">
+        <DailyProgress tasks={tasks} onCelebrationComplete={() => {}} />
       </div>
 
       {/* Exam Notification Banner */}
@@ -442,9 +438,16 @@ const Home = () => {
                                   <span className="flex items-center gap-1.5 bg-black/5 dark:bg-white/5 px-2 py-1 rounded-md shadow-inner"><Clock size={12} className="text-purple-500"/> {task.durationMinutes}m</span>
                               </div>
                           </div>
-                          <div className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 -translate-x-2 group-hover:translate-x-0 group-hover:bg-tt-blue group-hover:text-white shadow-md self-center">
-                              <ArrowRight size={18} className="text-current" />
-                          </div>
+                          <button 
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                toggleStatus(task.id, task.status); 
+                              }}
+                              className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-tt-green/20 hover:text-tt-green hover:scale-110 shadow-md self-center"
+                              title="Mark as completed"
+                          >
+                              <Circle size={22} className="text-gray-400 group-hover:text-tt-green transition-colors" />
+                          </button>
                       </div>
                   </div>
               ))}

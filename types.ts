@@ -113,6 +113,7 @@ export interface User {
   aiSettings?: AISettings;
   // User-defined announcement link
   announcementLink?: string;
+  announcementPreferences?: string; // NEW: Announcement preferences for AI filtering
   linkHistory?: LinkRecord[]; // NEW: Link History
   // Pro Membership
   pro_status?: boolean;

@@ -89,7 +89,8 @@ const suggestTimetableTool = {
                             durationMinutes: { type: "number" },
                             venue: { type: "string" },
                             description: { type: "string" }
-                        }
+                        },
+                        required: ["title", "day", "time"]
                     }
                 },
                 planSummary: { type: "string", description: "A brief summary of the generated plan to tell the user." }
@@ -340,7 +341,7 @@ export class AIAssistantService {
               "priority": "low",
               "suggestedAnswers": ["Option 1"]
             }
-            CRITICAL: If you are calling a tool, do NOT try to output JSON text at the same time if it confuses you. Just invoke the tool correctly. Do NOT output manual <function> tags.
+            CRITICAL: When using tools, invoke them natively. Do not output raw text, code blocks, or custom XML tags for tools.
             
             SPEECH & TEXT FORMATTING RULES:
             - Write 'text' as if it will be spoken by a voice assistant.
@@ -351,7 +352,7 @@ export class AIAssistantService {
             - Speak numbers naturally (e.g., "$10" as "ten dollars" logic is handled, but try to use words if better suited).
 
             TOOL CALLING:
-            Just invoke the tool natively using your function calling capabilities. If you call a function, the API will handle it.
+            Use your native function calling capabilities. Do not explain that you are calling a function. Do not combine tool calls with JSON text responses if it causes syntax errors.
             
             BEHAVIOR:
             - For normal replies -> popup = false
@@ -443,13 +444,15 @@ export class AIAssistantService {
                     } catch(e) {}
                 }
 
-                // Extensible regex to capture <function=NAME{JSON}</function> or similar outputs
-                const looseRegex = /<function=([^>\[\{\s]+)\s*([\[\{].*?[\]\}])\s*(?:<\/function>|>|$)/is;
+                // New simple regex that relies on the closing </function> tag
+                const looseRegex = /<function=([^>\[\{\s]+)\s*(.*?)(?:<\/function>)/is;
                 const match = failedGen.match(looseRegex);
                 if (match && match[1] && match[2]) {
-                    const funcName = match[1].replace(/["']/g, '').trim(); // Remove rogue brackets or quotes
+                    const funcName = match[1].replace(/["']/g, '').trim(); 
+                    let jsonString = match[2].trim();
+                    // Just in case it ends with an unclosed tag or something weird, we try parsing
                     try {
-                        let funcArgs = JSON.parse(match[2]);
+                        let funcArgs = JSON.parse(jsonString);
                         if (Array.isArray(funcArgs) && funcArgs.length > 0) {
                             funcArgs = funcArgs[0];
                         }
@@ -467,12 +470,14 @@ export class AIAssistantService {
                 }
                 
                 // Also handle cases where there are spaces, e.g. <function=askUserPreference {"question": "..."}>
-                const spaceRegex = /<function=([^\[\{\s>]+)(?:>|\s+)([\[\{].*?[\]\}])\s*(?:<\/function>|>|$)/is;
+                const spaceRegex = /<function=([^\[\{\s>]+)(?:>|\s+)(.*?)(?:<\/function>)/is;
                 const spaceMatch = failedGen.match(spaceRegex);
                 if (spaceMatch && spaceMatch[1] && spaceMatch[2]) {
                     const funcName = spaceMatch[1].trim();
                     try {
-                        let funcArgs = JSON.parse(spaceMatch[2]);
+                        let jsonString = spaceMatch[2].trim();
+                        if (jsonString.endsWith(">")) jsonString = jsonString.slice(0, -1).trim(); // fallback if it matched a trailing >
+                        let funcArgs = JSON.parse(jsonString);
                         if (Array.isArray(funcArgs) && funcArgs.length > 0) {
                             funcArgs = funcArgs[0];
                         }

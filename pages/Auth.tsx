@@ -2,8 +2,12 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Lock, Mail, User, ArrowRight, AlertCircle, Check, ShieldCheck, KeyRound, Fingerprint, RefreshCcw, XCircle } from 'lucide-react';
+import BootAnimation from '../components/BootAnimation';
+
+let globalBootPlayed = false;
 
 const Auth = () => {
+  const [showBoot, setShowBoot] = useState(!globalBootPlayed);
   const [viewState, setViewState] = useState<'login' | 'register' | 'recovery' | 'passkey'>('login');
   
   // Form States
@@ -103,6 +107,15 @@ const Auth = () => {
           }
       }
   };
+
+  if (showBoot) {
+      return (
+          <BootAnimation onComplete={() => {
+              globalBootPlayed = true;
+              setShowBoot(false);
+          }} />
+      );
+  }
 
   return (
     <div 

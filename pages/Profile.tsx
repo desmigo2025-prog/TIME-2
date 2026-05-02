@@ -40,6 +40,7 @@ const Profile = () => {
   });
 
   const [announcementLinkInput, setAnnouncementLinkInput] = useState(user?.announcementLink || '');
+  const [announcementPreferencesInput, setAnnouncementPreferencesInput] = useState(user?.announcementPreferences || '');
   const [isEditingLink, setIsEditingLink] = useState(false);
   const [showLinkMenu, setShowLinkMenu] = useState(false);
   const [showLinkHistoryModal, setShowLinkHistoryModal] = useState(false);
@@ -90,6 +91,9 @@ const Profile = () => {
 
       setIsExtractingLink(true);
       try {
+          // Update immediately to allow preference changes independently (optional if we only want to save everything together)
+          updateProfile({ announcementPreferences: announcementPreferencesInput });
+          
           // Extract content
           const parsedNews = await extractNewsFromLink(announcementLinkInput);
           
@@ -108,6 +112,7 @@ const Profile = () => {
           
           updateProfile({ 
               announcementLink: announcementLinkInput, // keep main active
+              announcementPreferences: announcementPreferencesInput,
               linkHistory: updatedHistory
           });
           
@@ -130,6 +135,7 @@ const Profile = () => {
           };
           updateProfile({ 
               announcementLink: announcementLinkInput,
+              announcementPreferences: announcementPreferencesInput,
               linkHistory: [newLink, ...currentHistory]
           });
           setIsEditingLink(false);
@@ -1077,9 +1083,16 @@ const Profile = () => {
                       <div className="space-y-3">
                           <input 
                               type="url"
-                              placeholder="https://example.com/feed"
+                              placeholder="https://example.com/feed (Announcement Link)"
                               value={announcementLinkInput}
                               onChange={(e) => setAnnouncementLinkInput(e.target.value)}
+                              className="w-full bg-black/10 border border-gray-700/50 rounded-lg px-4 py-2 text-current focus:border-tt-blue outline-none text-sm"
+                          />
+                          <input 
+                              type="text"
+                              placeholder="Your interests (e.g. Computer Science, Sports) - Optional"
+                              value={announcementPreferencesInput}
+                              onChange={(e) => setAnnouncementPreferencesInput(e.target.value)}
                               className="w-full bg-black/10 border border-gray-700/50 rounded-lg px-4 py-2 text-current focus:border-tt-blue outline-none text-sm"
                           />
                           <div className="flex gap-2">
@@ -1093,6 +1106,7 @@ const Profile = () => {
                                   <button 
                                       onClick={() => {
                                           setAnnouncementLinkInput(user.announcementLink || '');
+                                          setAnnouncementPreferencesInput(user.announcementPreferences || '');
                                           setIsEditingLink(false);
                                       }}
                                       className="bg-black/20 hover:bg-black/30 text-current text-xs font-bold px-4 py-2 rounded-lg transition-colors"
@@ -1104,10 +1118,15 @@ const Profile = () => {
                       </div>
                   ) : (
                       <div className="flex items-center justify-between bg-black/5 p-3 rounded-lg border border-gray-700/50">
-                          <div className="truncate mr-4 text-sm text-tt-blue">
-                              <a href={user.announcementLink} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                          <div className="mr-4 text-sm max-w-full overflow-hidden">
+                              <a href={user.announcementLink} target="_blank" rel="noopener noreferrer" className="hover:underline text-tt-blue block truncate">
                                   {user.announcementLink}
                               </a>
+                              {user.announcementPreferences && (
+                                  <p className="text-xs opacity-70 mt-1 truncate">
+                                      Pref: {user.announcementPreferences}
+                                  </p>
+                              )}
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
                               <button 

@@ -165,6 +165,84 @@ Ensure extreme accuracy. For 'isImportant', set to true ONLY IF it strongly sign
     }
 };
 
+export const extractAnnouncementsFromLink = async (url: string, preferences?: string): Promise<any[]> => {
+    try {
+        const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+        if (!response.ok) throw new Error('Failed to fetch link content');
+        
+        const data = await response.json();
+        const htmlContent = data.contents;
+        
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlContent, 'text/html');
+
+        const elementsToRemove = doc.querySelectorAll('script, style, nav, footer, header, iframe, img, svg, aside, noscript, .ads, .comments, .sidebar');
+        elementsToRemove.forEach(el => el.remove());
+
+        let mainContent = '';
+        const article = doc.querySelector('article') || doc.querySelector('main') || doc.querySelector('[role="main"]');
+        if (article) {
+            mainContent = article.textContent?.replace(/\s+/g, ' ').trim() || '';
+        } else {
+            mainContent = doc.body?.textContent?.replace(/\s+/g, ' ').trim() || '';
+        }
+        
+        const textContent = mainContent.slice(0, 15000);
+        
+        const prompt = `
+            Extract current, relevant announcements from the following web content.
+            Filter the information to bring up current announcements and trash irrelevant/outdated ones.
+            ${preferences ? `User Preferences for filtering: "${preferences}". Make sure to prioritize content matching these preferences.` : 'Pick the most generally useful and current information.'}
+            
+            [WEB CONTENT]
+            ${textContent}
+            
+            Return a JSON array of announcements.
+        `;
+        
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+        const result = await ai.models.generateContent({
+             model: 'gemini-3.1-pro-preview',
+             contents: prompt,
+             config: {
+                 responseMimeType: 'application/json',
+                 responseSchema: {
+                     type: Type.ARRAY,
+                     items: {
+                         type: Type.OBJECT,
+                         properties: {
+                             title: { type: Type.STRING },
+                             message: { type: Type.STRING },
+                             type: { type: Type.STRING, enum: ['Critical', 'Announcement', 'Attention', 'Info'] },
+                             isCurrent: { type: Type.BOOLEAN, description: "True if the event/news is recent or upcoming" }
+                         },
+                         required: ["title", "message", "type", "isCurrent"]
+                     }
+                 }
+             }
+        });
+        
+        const jsonResponse = result.text;
+        if (!jsonResponse) throw new Error("No text from Gemini");
+        const parsed = JSON.parse(jsonResponse);
+        
+        return parsed
+            .filter((a: any) => a.isCurrent !== false)
+            .map((a: any, i: number) => ({
+                id: `ai-${Date.now()}-${i}`,
+                title: a.title,
+                message: a.message,
+                type: a.type,
+                timestamp: new Date().toISOString(),
+                isRead: false,
+                source: new URL(url).hostname
+            }));
+    } catch (e) {
+        console.error("Failed to extract announcements", e);
+        throw e;
+    }
+};
+
 export const parseTimetableWithGemini = async (file: File): Promise<Partial<Task>[]> => {
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -375,12 +453,21 @@ export const generateTimetableWithGemini = async (
     }
 };
 
-export const getSmartSuggestions = async (tasks: Task[]): Promise<string> => {
+export const getSmartSuggestions = async (tasks: Task[], progress?: number): Promise<string> => {
     try {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const prompt = `Based on these tasks: ${JSON.stringify(tasks.map(t => t.title))}, give a 1 sentence productivity tip.`;
+        let prompt = `Based on these tasks: ${JSON.stringify(tasks.map(t => t.title))}, give a 1 sentence productivity tip.`;
+        if (progress !== undefined) {
+             if (progress === 100) {
+                 prompt = "The user has completed 100% of their tasks today! Give them a short, 1-sentence enthusiastic congratulation.";
+             } else if (progress > 50) {
+                 prompt = `The user has completed ${progress}% of their tasks today. Based on their remaining tasks: ${JSON.stringify(tasks.map(t => t.title))}, give a 1 sentence motivating tip to keep going string.`;
+             } else {
+                 prompt = `The user has only completed ${progress}% of their tasks today. Based on their upcoming tasks: ${JSON.stringify(tasks.map(t => t.title))}, give a 1 sentence encouraging tip to focus and finish strong.`;
+             }
+        }
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: 'gemini-3.1-flash',
             contents: prompt
         });
         return response.text || "Stay focused!";

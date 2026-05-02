@@ -9,6 +9,7 @@ import AIAvatar from '../components/AIAvatar';
 import { format, startOfWeek, addDays, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import DailyProgress from '../components/DailyProgress';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -172,6 +173,10 @@ const Tasks = () => {
                   {format(currentTime, 'HH:mm:ss')}
               </h1>
           </div>
+      </div>
+
+      <div className="animate-slide-up" style={{animationDelay: '0.1s'}}>
+        <DailyProgress tasks={tasks} />
       </div>
 
       <div className="flex justify-between items-center animate-slide-up" style={{animationDelay: '0.1s'}}>

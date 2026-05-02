@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Announcement, AnnouncementType } from '../types';
 import { AlertOctagon, X } from 'lucide-react';
 import { useAuth } from './AuthContext';
+import { extractAnnouncementsFromLink } from '../services/geminiService';
 
 interface AnnouncementContextType {
   announcements: Announcement[];
@@ -51,35 +52,16 @@ export const AnnouncementProvider = ({ children }: { children?: ReactNode }) => 
     setIsLoading(true);
     setError(null);
     try {
-      // In a real app, this would be a call to our secure backend proxy
-      // e.g., fetch(`/api/fetch-feed?url=${encodeURIComponent(user.announcementLink)}`)
-      // For this frontend-only demo, we attempt to fetch directly
-      const response = await fetch(user.announcementLink);
-      if (!response.ok) throw new Error('Failed to fetch announcements');
+      // Use AI to extract and filter current, relevant announcements based on user preferences
+      const newAnnouncements = await extractAnnouncementsFromLink(user.announcementLink, user.announcementPreferences);
       
-      const data = await response.json();
+      setAnnouncements(newAnnouncements);
+      localStorage.setItem('tt_announcements', JSON.stringify(newAnnouncements));
       
-      // Validate and map data to our Announcement format
-      if (Array.isArray(data)) {
-        const newAnnouncements = data.map((item: any, index: number) => ({
-          id: item.id || `fetched-${Date.now()}-${index}`,
-          title: item.title || 'Untitled Update',
-          message: item.message || item.content || '',
-          type: Object.values(AnnouncementType).includes(item.type) ? item.type : AnnouncementType.ANNOUNCEMENT,
-          timestamp: item.timestamp || new Date().toISOString(),
-          isRead: false,
-          source: item.source || new URL(user.announcementLink!).hostname
-        }));
-        
-        setAnnouncements(newAnnouncements);
-        localStorage.setItem('tt_announcements', JSON.stringify(newAnnouncements));
-        
-        // Trigger Alert for unread CRITICAL messages
-        const critical = newAnnouncements.find(a => a.type === AnnouncementType.CRITICAL && !a.isRead);
-        if (critical) setActiveAlert(critical);
-      } else {
-          throw new Error('Invalid feed format');
-      }
+      // Trigger Alert for unread CRITICAL messages
+      const critical = newAnnouncements.find(a => a.type === AnnouncementType.CRITICAL && !a.isRead);
+      if (critical) setActiveAlert(critical);
+      
     } catch (err) {
       console.error('Error fetching announcements:', err);
       setError('Could not load announcements from the provided link. Please check the URL or try again later.');
