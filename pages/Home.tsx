@@ -394,33 +394,10 @@ const Home = () => {
         </Card>
 
         <Card className="flex flex-col items-center justify-center gap-3 p-5 group hover:bg-gradient-to-b hover:from-blue-500/5 hover:to-transparent border-blue-500/20 hover:border-blue-500/40 cursor-pointer transition-all duration-300 hover:-translate-y-1 text-center" onClick={async () => {
-            if (!user?.googleIntegration?.isConnected) {
-                // Not connected, trigger OAuth connection popup
-                try {
-                    const redirectUri = `${window.location.origin}/auth/callback`;
-                    const response = await fetch(`/api/auth/url?userId=${user?.id}&redirectUri=${encodeURIComponent(redirectUri)}`);
-                    if (!response.ok) throw new Error('Failed to get auth URL');
-                    const { url } = await response.json();
-          
-                    const authWindow = window.open(url, 'oauth_popup', 'width=600,height=700');
-                    if (!authWindow) {
-                        alert('Please allow popups for this site to connect your Google Calendar account.');
-                    } else {
-                        // After connecting, the user has to wait until the auth refreshes or they can click it again
-                        alert('Please complete the Google Calendar login in the popup window. After setting up, click this button again to sync your calendar.');
-                    }
-                } catch (error) {
-                    console.error('OAuth error:', error);
-                    alert('Unable to connect to Google Calendar. Please try again.');
-                }
-            } else {
-                // Connected, trigger sync
-                try {
-                    await syncGoogleCalendar();
-                    alert("Sync triggered successfully!");
-                } catch (e: any) {
-                    alert(e.message || "Failed to trigger sync");
-                }
+            try {
+                await syncGoogleCalendar();
+            } catch (e: any) {
+                alert(e.message || "Failed to trigger sync");
             }
         }}>
           <div className="bg-gradient-to-br from-blue-500/10 to-blue-500/20 p-4 rounded-full group-hover:scale-110 transition-transform duration-500 shadow-inner relative">

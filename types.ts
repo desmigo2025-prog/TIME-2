@@ -26,7 +26,6 @@ export interface GoogleIntegration {
     isConnected: boolean;
     email?: string;
     lastSync?: string;
-    accessToken?: string; // Encrypted in real backend
 }
 
 export interface ExcelIntegration {

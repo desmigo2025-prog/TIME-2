@@ -1,16 +1,8 @@
-const errorMsg = '400 {"error":{"message":"Failed to call a function. Please adjust your prompt. See \'failed_generation\' for more details.","type":"invalid_request_error","code":"tool_use_failed","failed_generation":"<function=updateUserSettings [{\\"settings\\": {\\"theme\\": \\"red\\"}}]</function>"}}';
+const string1 = `{\\n "text": "Hi Desmond! How are you doing today?",\\n "emotion": "happy",\\n "animation": "greeting",\\n "popup": false,\\n "priority": "low",\\n "suggestedAnswers": ["I'm good, thanks", "I need help with something"]\\n}`
 
-let rawError = {};
+let cleanJson = string1;
+cleanJson = cleanJson.replace(/\\n/g, '');
+console.log("Replaced:", cleanJson);
 try {
-    if (errorMsg.startsWith('400 ')) {
-        rawError = JSON.parse(errorMsg.substring(4)).error;
-    }
-} catch (e) {
-    console.log("Parse error:", e);
-}
-
-console.log("rawError:", rawError);
-const failedGen = rawError.failed_generation;
-const looseRegex = /<function=([^>\[\{\s]+)\s*([\[\{].*?[\]\}])\s*(?:<\/function>|>|$)/is;
-const match = failedGen.match(looseRegex);
-console.log("match:", match);
+  console.log(JSON.parse(cleanJson));
+} catch(e) { console.error(e) }

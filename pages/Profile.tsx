@@ -307,52 +307,20 @@ const Profile = () => {
   // --- Integration Handlers ---
 
   const handleGoogleConnect = async () => {
-      // Check if not Pro and already has another integration (like email summary used, though email is stateless, we can just check isPro)
+      // Check if not Pro and already has another integration
       if (!isPro && user?.emailSummaryUsed) {
           setShowUpgradeModal(true);
           return;
       }
       setIntegrationLoading(true);
       try {
-          const redirectUri = `${window.location.origin}/auth/callback`;
-          const response = await fetch(`/api/auth/url?userId=${user?.id}&redirectUri=${encodeURIComponent(redirectUri)}`);
-          if (!response.ok) throw new Error('Failed to get auth URL');
-          const { url } = await response.json();
-
-          const authWindow = window.open(url, 'oauth_popup', 'width=600,height=700');
-          if (!authWindow) {
-              alert('Please allow popups for this site to connect your account.');
-              setIntegrationLoading(false);
-          }
+          await syncGoogleCalendar();
       } catch (error) {
-          console.error('OAuth error:', error);
-          alert('Unable to connect to Google Calendar. Please try again.');
+          console.error(error);
+      } finally {
           setIntegrationLoading(false);
       }
   };
-
-  React.useEffect(() => {
-      const handleMessage = (event: MessageEvent) => {
-          const origin = event.origin;
-          if (!origin.endsWith('.run.app') && !origin.includes('localhost')) {
-              return;
-          }
-          if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
-              updateProfile({
-                  googleIntegration: {
-                      isConnected: true,
-                      email: user?.email,
-                      lastSync: new Date().toISOString(),
-                      accessToken: 'connected'
-                  }
-              });
-              setIntegrationLoading(false);
-              alert('Google Calendar connected successfully!');
-          }
-      };
-      window.addEventListener('message', handleMessage);
-      return () => window.removeEventListener('message', handleMessage);
-  }, [user]);
 
   const handleGoogleDisconnect = () => {
       if (window.confirm("Disconnect Google Calendar? This will stop future syncs.")) {

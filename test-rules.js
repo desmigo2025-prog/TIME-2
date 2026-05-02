@@ -33,6 +33,31 @@ async function runTests() {
   const db = alice.firestore();
   
   try {
+    const freshId = 'new-user-123';
+    const freshContext = testEnv.authenticatedContext(freshId, { email: 'fresh@example.com' });
+    const freshDb = freshContext.firestore();
+    await assertSucceeds(freshDb.collection('users').doc(freshId).set({
+      user: {
+        id: freshId,
+        username: 'fresh',
+        email: 'fresh@example.com',
+        displayName: 'Fresh User',
+        avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=fresh',
+        joinedDate: '2026-05-02T12:00:00Z',
+        passkeys: [],
+        backgroundAlertsEnabled: false,
+        googleIntegration: { isConnected: true },
+        excelIntegration: {},
+        loginAttempts: 0,
+        lockUntil: null
+      }
+    }));
+    console.log("Create succeeded!");
+  } catch (e) {
+    console.error("Create failed:", e);
+  }
+
+  try {
     await assertSucceeds(db.collection('users').doc(aliceId).update({
       user: {
         id: aliceId,

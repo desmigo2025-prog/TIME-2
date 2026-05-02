@@ -370,6 +370,10 @@ export const TaskProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const syncGoogleCalendar = async () => {
+      // CLEAR USER CONSENT
+      const userConsent = window.confirm("Privacy Notice: This app only accesses your calendar events to import and manage your schedules. No emails, files, contacts, or sensitive account data are accessed.\n\nDo you wish to continue?");
+      if (!userConsent) return;
+
       setSyncStatus('saving');
       try {
           // Re-authenticate to get a fresh Google OAuth Access Token
@@ -378,8 +382,8 @@ export const TaskProvider = ({ children }: { children?: ReactNode }) => {
           
           const provider = new GoogleAuthProvider();
           provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
-          provider.addScope('https://www.googleapis.com/auth/calendar.events');
-          
+          // Removed full calendar.events permission to increase privacy and reduce warnings.
+
           // Note: using prompt: 'consent' forces getting a refresh token, but we only need access token for now
           provider.setCustomParameters({ prompt: 'select_account' });
           
@@ -444,43 +448,43 @@ export const TaskProvider = ({ children }: { children?: ReactNode }) => {
               });
 
               setTasks(prev => {
-                  const combined = [...prev.filter(t => !t.isGoogleEvent), ...importedTasks];
-                  return combined;
+                  // SMARTER DUPLICATE AVOIDANCE & OVERLAP PREVENTION
+                  const prevFiltered = prev.filter(t => !t.isGoogleEvent);
+                  
+                  // Filter out imported tasks that directly overlap with our manual tasks
+                  const uniqueImported = importedTasks.filter(impTask => {
+                     // Check if an existing task has the exact same title, day, and time
+                     const isExactDuplicate = prevFiltered.some(pt => 
+                        pt.title.toLowerCase() === impTask.title.toLowerCase() && 
+                        pt.day === impTask.day && 
+                        pt.time === impTask.time
+                     );
+                     
+                     if (isExactDuplicate) return false;
+                     
+                     // Check for time overlap 
+                     const isOverlapping = prevFiltered.some(pt => {
+                         if (pt.day !== impTask.day) return false;
+                         
+                         const ptStartMinutes = parseInt(pt.time.split(':')[0]) * 60 + parseInt(pt.time.split(':')[1]);
+                         const ptEndMinutes = ptStartMinutes + pt.durationMinutes;
+                         
+                         const impStartMinutes = parseInt(impTask.time.split(':')[0]) * 60 + parseInt(impTask.time.split(':')[1]);
+                         const impEndMinutes = impStartMinutes + impTask.durationMinutes;
+                         
+                         // Overlap condition
+                         return (ptStartMinutes < impEndMinutes && ptEndMinutes > impStartMinutes);
+                     });
+                     
+                     return !isOverlapping;
+                  });
+                  return [...prevFiltered, ...uniqueImported];
               });
           }
 
-          // 2. We can also push our tasks if we wanted to, but the current payload pushes tasks blindly.
-          // For now, we only push new tasks that aren't already Google Events.
-          const tasksToPush = tasks.filter(t => !t.isGoogleEvent);
-          let pushedCount = 0;
+          // We intentionally avoid pushing tasks back to Google Calendar by default
+          // to maintain our calendar.readonly promise and reduce security warnings.
           
-          // Optional: Create events for some tasks. Muting for performance if too many.
-          for (const task of tasksToPush.slice(0, 5)) { // Limit to 5 for safety during demo
-             // Basic attempt to push
-             const taskDate = new Date(); // Need logic to map 'day' to a real date, simplified here
-             const [hours, minutes] = task.time.split(':');
-             taskDate.setHours(parseInt(hours), parseInt(minutes), 0);
-             
-             const endDate = new Date(taskDate.getTime() + (task.durationMinutes * 60000));
-             try {
-                 await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
-                     method: 'POST',
-                     headers: {
-                          'Authorization': `Bearer ${token}`,
-                          'Content-Type': 'application/json'
-                     },
-                     body: JSON.stringify({
-                         summary: task.title,
-                         description: task.description,
-                         location: task.venue,
-                         start: { dateTime: taskDate.toISOString() },
-                         end: { dateTime: endDate.toISOString() }
-                     })
-                 });
-                 pushedCount++;
-             } catch(e) { console.warn("Failed to push task", task.title); }
-          }
-
           // Update User Sync Status
           if (user) {
               await updateProfile({
@@ -493,8 +497,8 @@ export const TaskProvider = ({ children }: { children?: ReactNode }) => {
           }
 
           setSyncStatus('synced');
-          logActivity(`Synced with Google Calendar. Downloaded ${events.length}. Uploaded ${pushedCount}.`);
-          alert('Successfully synced with real-time Google Calendar!');
+          logActivity(`Synced with Google Calendar. Downloaded ${events.length}.`);
+          alert('Successfully imported real-time events from Google Calendar!');
       } catch (error: any) {
           console.error("Google Calendar sync error:", error);
           setSyncStatus('error');

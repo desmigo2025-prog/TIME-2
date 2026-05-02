@@ -75,7 +75,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow get: if isSignedIn() && request.auth.uid == userId && isValidId(userId);
+      allow get: if isSignedIn() && request.auth.uid == userId;
       // Client query delegation MUST BE PREVENTED
       allow list: if false; 
       

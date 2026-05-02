@@ -506,7 +506,7 @@ const Tasks = () => {
                           <div className="flex flex-col items-center justify-center h-64 opacity-60">
                               <Calendar size={48} className="mb-4 opacity-20" />
                               <p>No tasks scheduled for {selectedDayName}.</p>
-                              <button className="mt-4 text-tt-blue hover:opacity-80 transition-opacity text-sm">Add a task manually</button>
+                              <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate('/add'); }} className="mt-4 text-tt-blue hover:opacity-80 transition-opacity text-sm relative z-10 pointer-events-auto px-4 py-2 bg-tt-blue/10 rounded-lg font-medium">Add a task manually</button>
                           </div>
                       )}
                       {provided.placeholder}

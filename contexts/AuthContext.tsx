@@ -276,7 +276,28 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
           const result = await signInWithPopup(auth, googleProvider);
           const firebaseUser = result.user;
           
+          let userData: User | null = null;
+          try {
+              const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+              if (userDoc.exists()) {
+                  userData = userDoc.data().user;
+              }
+          } catch(e) {
+              console.warn("Failed to fetch existing user profile during Google login", e);
+          }
+          
           const dbLocal = getStoredUsers();
+          
+          // If the user already exists in Firestore, just log them in
+          if (userData) {
+              if (!dbLocal[userData.id]) {
+                  dbLocal[userData.id] = { user: userData, passwordHash: '', specialWordHash: '' };
+              }
+              completeLogin(userData, dbLocal);
+              logActivity('Logged in via Google (existing user)');
+              return;
+          }
+          
           let targetUserKey = Object.keys(dbLocal).find(key => dbLocal[key].user.email === firebaseUser.email);
           
           if (targetUserKey) {

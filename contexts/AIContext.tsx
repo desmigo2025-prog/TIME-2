@@ -524,17 +524,45 @@ export const AIProvider = ({ children }: { children?: ReactNode }) => {
             try {
                 if (response.text) {
                     let cleanJson = response.text.trim();
-                    // If AI included markdown code blocks, strip them
                     if (cleanJson.startsWith("```json")) {
                         cleanJson = cleanJson.replace(/^```json/, "").replace(/```$/, "").trim();
                     } else if (cleanJson.startsWith("```")) {
                         cleanJson = cleanJson.replace(/^```/, "").replace(/```$/, "").trim();
                     }
-                    parsedResponse = JSON.parse(cleanJson);
+                    
+                    try {
+                        parsedResponse = JSON.parse(cleanJson);
+                    } catch (parseError) {
+                        // Attempt to extract just the JSON block if there's conversational wrapper text
+                        const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
+                        if (jsonMatch) {
+                            try {
+                                parsedResponse = JSON.parse(jsonMatch[0]);
+                            } catch (e2) {
+                                // If it STILL fails (e.g. invalid escapes like literal \n), try aggressively cleaning
+                                const ultraClean = jsonMatch[0].replace(/\\n/g, ' ').replace(/\n/g, ' ');
+                                parsedResponse = JSON.parse(ultraClean);
+                            }
+                        } else {
+                            throw parseError; // Fall to outer catch
+                        }
+                    }
                 }
             } catch (e) {
-                console.warn("Failed to parse AI JSON response, falling back to raw text:", e);
-                parsedResponse.text = response.text || "";
+                console.warn("Failed to parse AI JSON response natively:", e);
+                // Last ditch effort to extract JUST the text field if the JSON is completely mangled
+                const textMatch = response.text?.match(/"text"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
+                if (textMatch && textMatch[1]) {
+                    parsedResponse.text = textMatch[1].replace(/\\"/g, '"');
+                } else {
+                    // Avoid showing the raw JSON text bubble to users.
+                    // If it starts with { it's likely a broken JSON. Let's just say "Got it" or similar.
+                    if (response.text?.trim().startsWith('{')) {
+                       parsedResponse.text = "I processed your request, but I had trouble formatting my response. Could you rephrase it?";
+                    } else {
+                       parsedResponse.text = response.text || "";
+                    }
+                }
             }
 
             // Handle Tool Calls
