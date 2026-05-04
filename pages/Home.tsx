@@ -7,11 +7,13 @@ import { useUsage } from '../contexts/UsageContext';
 import { Task, TaskStatus } from '../types';
 import { Card } from '../components/ui/Card';
 import { parseTimetableWithGemini, getSmartSuggestions } from '../services/geminiService';
-import { Upload, Clock, MapPin, Calendar as CalendarIcon, ArrowRight, Loader, Info, Edit, Bell, Bot, X, Crown, AlertCircle, CheckCircle, Circle } from 'lucide-react';
+import { Upload, Clock, MapPin, Calendar as CalendarIcon, ArrowRight, Loader, Info, Edit, Bell, Bot, X, Crown, AlertCircle, CheckCircle, Circle, Play } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import UpgradeModal from '../components/UpgradeModal';
 import DailyProgress from '../components/DailyProgress';
+import ActiveTaskBanner from '../components/ActiveTaskBanner';
+import { useActiveTask } from '../contexts/ActiveTaskContext';
 
 const Home = () => {
   const { user } = useAuth();
@@ -31,6 +33,7 @@ const Home = () => {
   const isLightTheme = theme === 'nature' || theme === 'ocean' || theme === 'sunset' || theme === 'ladies' || theme === 'white' || isCustomLight();
   const isCustomTheme = theme === 'custom';
   const { tasks, upcomingTasks, ongoingTasks, exams, syncGoogleCalendar, updateTask } = useTasks();
+  const { startTask } = useActiveTask();
   const { unreadCount } = useAnnouncements();
   const { latestGreeting, dismissGreeting } = useAI();
   const { isPro, canUploadFile, incrementFileUpload, getUsageStats } = useUsage();
@@ -282,6 +285,7 @@ const Home = () => {
 
       {/* Daily Progress Bar */}
       <div className="animate-slide-up">
+        <ActiveTaskBanner />
         <DailyProgress tasks={tasks} onCelebrationComplete={() => {}} />
       </div>
 
@@ -400,7 +404,7 @@ const Home = () => {
               <CalendarIcon className="text-blue-500" size={24} />
           </div>
           <div>
-             <span className="font-bold text-sm block tracking-tight">Sync GCal</span>
+             <span className="font-bold text-sm block tracking-tight">Sync Calendar</span>
              <span className="text-[10px] opacity-60 font-medium">Import Schedule</span>
           </div>
         </Card>
@@ -419,7 +423,9 @@ const Home = () => {
                       {/* Timeline Dot */}
                       <div className={`absolute -left-6 top-6 w-3 h-3 rounded-full border-2 border-white dark:border-gray-900 shadow-sm ${index === 0 ? 'bg-tt-blue animate-pulse box-content border-[3px]' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
 
-                      <div className={`flex items-start gap-4 glass-panel p-5 rounded-[1.25rem] hover:border-tt-blue/30 transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] ${index === 0 ? 'bg-gradient-to-r from-tt-blue/5 to-transparent border-tt-blue/20' : ''}`}>
+                      <div className={`flex items-start gap-4 glass-panel p-5 rounded-[1.25rem] hover:border-tt-blue/30 transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] 
+                          ${task.status === TaskStatus.IN_PROGRESS ? 'ring-2 ring-tt-blue border-transparent bg-blue-500/10 shadow-[0_0_20px_rgba(30,144,255,0.3)] animate-pulse' : 
+                          index === 0 ? 'bg-gradient-to-r from-tt-blue/5 to-transparent border-tt-blue/20' : ''}`}>
                           <div className={`w-[4.5rem] h-[4.5rem] rounded-2xl bg-black/5 dark:bg-white/5 flex flex-col items-center justify-center shrink-0 border border-black/5 dark:border-white/5 shadow-inner group-hover:bg-tt-blue/10 group-hover:border-tt-blue/20 transition-colors`}>
                               <span className="text-[10px] uppercase tracking-wider opacity-80 font-bold">{task.date ? format(new Date(task.date), 'MMM d') : task.day.substring(0, 3)}</span>
                               <span className="font-black text-current text-sm mt-0.5">{task.time}</span>
@@ -438,16 +444,27 @@ const Home = () => {
                                   <span className="flex items-center gap-1.5 bg-black/5 dark:bg-white/5 px-2 py-1 rounded-md shadow-inner"><Clock size={12} className="text-purple-500"/> {task.durationMinutes}m</span>
                               </div>
                           </div>
-                          <button 
-                              onClick={(e) => { 
-                                e.stopPropagation(); 
-                                toggleStatus(task.id, task.status); 
-                              }}
-                              className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-tt-green/20 hover:text-tt-green hover:scale-110 shadow-md self-center"
-                              title="Mark as completed"
-                          >
-                              <Circle size={22} className="text-gray-400 group-hover:text-tt-green transition-colors" />
-                          </button>
+                          <div className="flex flex-col items-center gap-2">
+                              <button 
+                                  onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    toggleStatus(task.id, task.status); 
+                                  }}
+                                  className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-tt-green/20 hover:text-tt-green hover:scale-110 shadow-md self-center"
+                                  title="Mark as completed"
+                              >
+                                  <Circle size={22} className="text-gray-400 group-hover:text-tt-green transition-colors" />
+                              </button>
+                              {task.status !== TaskStatus.COMPLETED && task.status !== TaskStatus.IN_PROGRESS && (
+                                  <button
+                                      onClick={(e) => { e.stopPropagation(); startTask(task.id, task.durationMinutes); }}
+                                      className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-tt-blue/20 hover:text-tt-blue hover:scale-110 shadow-md self-center"
+                                      title="Start Task"
+                                  >
+                                      <Play size={18} className="text-gray-400 group-hover:text-tt-blue transition-colors ml-1" />
+                                  </button>
+                              )}
+                          </div>
                       </div>
                   </div>
               ))}

@@ -381,8 +381,8 @@ export const TaskProvider = ({ children }: { children?: ReactNode }) => {
           const { auth } = await import('../firebase');
           
           const provider = new GoogleAuthProvider();
-          provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
-          // Removed full calendar.events permission to increase privacy and reduce warnings.
+          provider.addScope('https://www.googleapis.com/auth/calendar.events.readonly');
+          // Scoped down to events only to respect privacy and "only import user's calendar".
 
           // Note: using prompt: 'consent' forces getting a refresh token, but we only need access token for now
           provider.setCustomParameters({ prompt: 'select_account' });

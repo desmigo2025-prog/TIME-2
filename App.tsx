@@ -2,6 +2,7 @@ import React, { useEffect, ReactNode, Suspense, lazy } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { TaskProvider } from './contexts/TaskContext';
+import { ActiveTaskProvider } from './contexts/ActiveTaskContext';
 import { AnnouncementProvider } from './contexts/AnnouncementContext';
 import { AIProvider } from './contexts/AIContext';
 import { UsageProvider } from './contexts/UsageContext';
@@ -115,13 +116,15 @@ const App = () => {
       <UsageProvider>
         <AnnouncementProvider>
           <TaskProvider>
-              <LectureProvider>
-                  <AIProvider>
-                      <HashRouter>
-                          <AppContent />
-                      </HashRouter>
-                  </AIProvider>
-              </LectureProvider>
+              <ActiveTaskProvider>
+                <LectureProvider>
+                    <AIProvider>
+                        <HashRouter>
+                            <AppContent />
+                        </HashRouter>
+                    </AIProvider>
+                </LectureProvider>
+              </ActiveTaskProvider>
           </TaskProvider>
         </AnnouncementProvider>
       </UsageProvider>

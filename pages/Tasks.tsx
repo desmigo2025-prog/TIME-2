@@ -10,11 +10,14 @@ import { format, startOfWeek, addDays, isSameDay, startOfMonth, endOfMonth, each
 import { useNavigate } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import DailyProgress from '../components/DailyProgress';
+import ActiveTaskBanner from '../components/ActiveTaskBanner';
+import { useActiveTask } from '../contexts/ActiveTaskContext';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 const Tasks = () => {
   const { tasks, updateTask, syncGoogleCalendar, syncStatus, refreshTasks, deleteTasks, clearTasks, reorderTasks } = useTasks();
+  const { startTask } = useActiveTask();
   const { isPro } = useUsage();
   const { user } = useAuth();
   const theme = user?.aiSettings?.theme || 'dark';
@@ -67,6 +70,14 @@ const Tasks = () => {
   const toggleStatus = (id: string, currentStatus: TaskStatus) => {
       const newStatus = currentStatus === TaskStatus.COMPLETED ? TaskStatus.PENDING : TaskStatus.COMPLETED;
       updateTask(id, { status: newStatus });
+  }
+
+  const handleRescheduleToday = (id: string) => {
+      updateTask(id, {
+          status: TaskStatus.PENDING,
+          date: format(currentTime, 'yyyy-MM-dd'),
+          day: format(currentTime, 'EEEE')
+      });
   }
 
   const onDragEnd = (result: DropResult) => {
@@ -176,6 +187,7 @@ const Tasks = () => {
       </div>
 
       <div className="animate-slide-up" style={{animationDelay: '0.1s'}}>
+        <ActiveTaskBanner />
         <DailyProgress tasks={tasks} />
       </div>
 
@@ -416,7 +428,8 @@ const Tasks = () => {
                                     {...provided.dragHandleProps}
                                     className={`flex gap-4 items-start group relative overflow-hidden p-5 rounded-2xl shadow-sm border transition-all duration-300 hover:shadow-md
                                         ${isLightTheme ? 'bg-white border-gray-200 hover:border-gray-300' : 'bg-gray-800 border-gray-700 hover:border-gray-600'}
-                                        ${task.status === TaskStatus.COMPLETED ? (isLightTheme ? 'opacity-60 bg-gray-50' : 'opacity-60 bg-gray-900') : ''}
+                                        ${task.status === TaskStatus.COMPLETED ? (isLightTheme ? 'opacity-70 bg-green-50/50 border-green-200 shadow-[inset_0_0_20px_rgba(46,204,113,0.1)]' : 'opacity-70 bg-green-900/10 border-green-800 shadow-[inset_0_0_20px_rgba(46,204,113,0.05)]') : ''}
+                                        ${task.status === TaskStatus.IN_PROGRESS ? (isLightTheme ? 'ring-2 ring-tt-blue border-transparent bg-blue-50/50 shadow-[0_0_20px_rgba(30,144,255,0.3)] animate-pulse' : 'ring-2 ring-tt-blue border-transparent bg-blue-900/10 shadow-[0_0_20px_rgba(30,144,255,0.3)] animate-pulse') : ''}
                                         ${task.status === TaskStatus.MISSED ? (isLightTheme ? 'border-l-4 border-l-red-500 bg-red-50/50' : 'border-l-4 border-l-red-500 bg-red-500/10') : ''}
                                         ${needsReview ? 'border-l-4 border-l-yellow-500' : ''}
                                         ${forced ? 'border-l-4 border-l-orange-500' : ''}
@@ -450,7 +463,7 @@ const Tasks = () => {
                                         alert(`Details:\n${task.description || 'No description'}\nVenue: ${task.venue}`);
                                     }}>
                                         <div className="flex justify-between items-start">
-                                            <h4 className={`font-bold text-lg ${task.status === TaskStatus.COMPLETED ? 'line-through text-gray-500' : task.status === TaskStatus.MISSED ? (isLightTheme ? 'text-red-700' : 'text-red-400') : (isLightTheme ? 'text-gray-900' : 'text-white')}`}>
+                                            <h4 className={`font-bold text-lg ${task.status === TaskStatus.COMPLETED ? 'line-through text-gray-500 decoration-[#2ECC71]/50' : task.status === TaskStatus.MISSED ? (isLightTheme ? 'text-red-700' : 'text-red-400') : (isLightTheme ? 'text-gray-900' : 'text-white')}`}>
                                                 {task.title}
                                             </h4>
                                             <div className="flex items-center gap-2">
@@ -485,7 +498,23 @@ const Tasks = () => {
                                         </div>
 
                                         {/* Validation Flags */}
-                                        <div className="flex gap-2 mt-3">
+                                        <div className="flex flex-wrap gap-2 mt-3 items-center">
+                                            {task.status !== TaskStatus.COMPLETED && task.status !== TaskStatus.IN_PROGRESS && !isSelectionMode && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); startTask(task.id, task.durationMinutes); }}
+                                                    className="text-xs flex items-center gap-1 text-white font-bold bg-gradient-to-r from-tt-blue to-purple-500 hover:from-blue-600 hover:to-purple-600 px-3 py-1 rounded-full shadow-sm transition-all"
+                                                >
+                                                    <Clock size={12} /> Start Task
+                                                </button>
+                                            )}
+                                            {task.status === TaskStatus.MISSED && (
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); handleRescheduleToday(task.id); }}
+                                                    className="text-xs flex items-center gap-1 text-white font-bold bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 px-3 py-1 rounded-full shadow-sm transition-all"
+                                                >
+                                                    <RefreshCw size={12} /> Reschedule Today
+                                                </button>
+                                            )}
                                             {needsReview && (
                                                 <div className="text-xs flex items-center gap-1 text-yellow-600 font-bold bg-yellow-50 px-2 py-1 rounded-md">
                                                     <AlertTriangle size={12} /> Review Required
@@ -547,7 +576,7 @@ const Tasks = () => {
                                                           {...provided.dragHandleProps}
                                                           className={`p-4 rounded-xl border shadow-sm transition-all relative group
                                                               ${isLightTheme ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'} 
-                                                              ${task.status === TaskStatus.COMPLETED ? (isLightTheme ? 'opacity-60 bg-gray-50' : 'opacity-60 bg-gray-900') : ''}
+                                                              ${task.status === TaskStatus.COMPLETED ? (isLightTheme ? 'opacity-70 bg-green-50/50 border-green-200 shadow-[inset_0_0_20px_rgba(46,204,113,0.1)]' : 'opacity-70 bg-green-900/10 border-green-800 shadow-[inset_0_0_20px_rgba(46,204,113,0.05)]') : ''}
                                                               ${task.status === TaskStatus.MISSED ? (isLightTheme ? 'border-l-4 border-l-red-500 bg-red-50/50' : 'border-l-4 border-l-red-500 bg-red-500/10') : ''}
                                                               ${isSelectionMode && selectedTaskIds.includes(task.id) ? 'ring-2 ring-tt-red border-transparent' : ''}
                                                               ${snapshot.isDragging ? 'shadow-xl scale-105 ring-2 ring-[#1E90FF] z-50' : 'hover:shadow-md'}
@@ -580,7 +609,7 @@ const Tasks = () => {
                                                               </button>
                                                           )}
                                                           <div className="flex justify-between items-start mb-2 pr-6">
-                                                              <h4 className={`font-bold text-sm ${isLightTheme ? 'text-gray-900' : 'text-white'}`}>{task.title}</h4>
+                                                              <h4 className={`font-bold text-sm ${task.status === TaskStatus.COMPLETED ? 'line-through text-gray-500 decoration-[#2ECC71]/50' : task.status === TaskStatus.MISSED ? (isLightTheme ? 'text-red-700' : 'text-red-400') : (isLightTheme ? 'text-gray-900' : 'text-white')}`}>{task.title}</h4>
                                                               <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
                                                                   (task.priority === TaskPriority.HIGH || task.priority === TaskPriority.URGENT) ? 'bg-red-100 text-red-600' : 
                                                                   (task.priority === TaskPriority.MEDIUM || task.priority === TaskPriority.IMPORTANT) ? 'bg-yellow-100 text-yellow-700' : 
@@ -590,7 +619,15 @@ const Tasks = () => {
                                                               </span>
                                                           </div>
                                                           <div className={`text-xs font-mono ${isLightTheme ? 'text-gray-500' : 'text-gray-400'}`}>{task.time} • {task.durationMinutes}m</div>
-                                                          <div className="flex flex-wrap gap-1 mt-2">
+                                                          <div className="flex flex-wrap gap-1 mt-2 items-center">
+                                                              {task.status === TaskStatus.MISSED && (
+                                                                  <button 
+                                                                      onClick={(e) => { e.stopPropagation(); handleRescheduleToday(task.id); }}
+                                                                      className="text-[10px] flex items-center gap-1 text-white font-bold bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 px-2 py-0.5 rounded-full shadow-sm w-full justify-center mb-1 transition-all"
+                                                                  >
+                                                                      <RefreshCw size={10} /> Reschedule
+                                                                  </button>
+                                                              )}
                                                               {task.validationStatus === 'needs_review' && (
                                                                   <div className="text-[10px] flex items-center gap-1 text-yellow-600 font-bold bg-yellow-50 px-1.5 py-0.5 rounded">
                                                                       <AlertTriangle size={10} /> Review

@@ -88,11 +88,26 @@ const ReviewTimetable = () => {
     // Initialize: Prefer Draft from Context, else New Upload from Location
     useEffect(() => {
         window.scrollTo(0, 0); // Auto-scroll to top to ensure user sees Save Draft immediately
+        
+        const enforceDayDateConsistency = (taskList: any[]) => {
+            return taskList.map(t => {
+                let computedDay = t.day || 'Monday';
+                if (t.date) {
+                    const dateObj = new Date(t.date);
+                    if (!isNaN(dateObj.getTime())) {
+                        computedDay = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dateObj.getDay()];
+                    }
+                }
+                return { ...t, day: computedDay };
+            });
+        };
+
         if (draftTasks && draftTasks.length > 0) {
-            setTasks(draftTasks);
-            validateTasks(draftTasks);
+            const consistentDrafts = enforceDayDateConsistency(draftTasks);
+            setTasks(consistentDrafts);
+            validateTasks(consistentDrafts);
         } else if (location.state?.scannedTasks) {
-            const initialTasks: Task[] = location.state.scannedTasks.map((t: any) => ({
+            const rawInitial = location.state.scannedTasks.map((t: any) => ({
                 id: Math.random().toString(36).substr(2, 9),
                 title: t.title || 'Untitled',
                 description: t.description || '',
@@ -114,9 +129,10 @@ const ReviewTimetable = () => {
                 weekIdentifier: t.weekIdentifier,
                 date: t.date
             }));
-            setTasks(initialTasks);
-            validateTasks(initialTasks);
-            saveDraft(initialTasks);
+            const consistentInitial = enforceDayDateConsistency(rawInitial);
+            setTasks(consistentInitial);
+            validateTasks(consistentInitial);
+            saveDraft(consistentInitial);
         } else {
             navigate('/');
         }
@@ -298,7 +314,7 @@ const ReviewTimetable = () => {
     };
 
     return (
-        <div className={`h-screen flex flex-col overflow-hidden relative ${isCustomTheme ? 'bg-transparent' : isLightTheme ? 'bg-gray-50' : 'bg-tt-dark'} ${isLightTheme ? 'text-gray-900' : 'text-white'}`}>
+        <div className={`h-[100dvh] w-full flex flex-col overflow-hidden relative ${isCustomTheme ? 'bg-transparent' : isLightTheme ? 'bg-gray-50' : 'bg-tt-dark'} ${isLightTheme ? 'text-gray-900' : 'text-white'}`}>
             
             {/* ISSUE SUMMARY MODAL */}
             {showIssueSummary && (
@@ -456,8 +472,8 @@ const ReviewTimetable = () => {
             )}
 
             {/* Kanban Board Area */}
-            <div className="flex-1 overflow-x-auto overflow-y-hidden p-4">
-                <div className="flex gap-4 h-full min-w-max">
+            <div className="flex-1 overflow-x-auto overflow-y-hidden p-4 w-full min-w-0 scroll-smooth snap-x snap-mandatory">
+                <div className="flex gap-4 h-full min-w-max pb-20 md:pb-0">
                     {DAYS.map(day => {
                         const dayTasks = tasks.filter(t => {
                             const tWeek = t.weekIdentifier || t.date || 'Default Week';
@@ -469,7 +485,7 @@ const ReviewTimetable = () => {
                             key={day}
                             onDragOver={onDragOver}
                             onDrop={(e) => onDrop(e, day)}
-                            className={`w-80 flex flex-col rounded-2xl border backdrop-blur-sm ${isLightTheme ? 'bg-white/50 border-gray-200/50' : 'bg-gray-800/30 border-gray-700/50'}`}
+                            className={`w-[85vw] sm:w-80 flex flex-col rounded-2xl border backdrop-blur-sm shrink-0 snap-center ${isLightTheme ? 'bg-white/50 border-gray-200/50' : 'bg-gray-800/30 border-gray-700/50'}`}
                         >
                             <div className={`p-4 border-b flex justify-between items-center rounded-t-2xl sticky top-0 z-10 ${isLightTheme ? 'border-gray-200/50 bg-white/80' : 'border-gray-700/50 bg-gray-800/50'}`}>
                                 <h3 className="font-bold text-tt-blue">{day}</h3>

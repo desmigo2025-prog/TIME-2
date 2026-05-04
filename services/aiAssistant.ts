@@ -84,7 +84,8 @@ const suggestTimetableTool = {
                         type: "object",
                         properties: {
                             title: { type: "string" },
-                            day: { type: "string" },
+                            day: { type: "string", description: "Day of the week (e.g. Monday)" },
+                            date: { type: "string", description: "Date in YYYY-MM-DD format, must match the day if provided." },
                             time: { type: "string" },
                             durationMinutes: { type: "number" },
                             venue: { type: "string" },
@@ -181,7 +182,7 @@ const navigateAppTool = {
     type: "function",
     function: {
         name: "navigateApp",
-        description: "Navigate the user to a specific page or feature in the app.",
+        description: "Navigate the user to a specific page or feature in the app. ONLY use this when the user explicitly asks to 'go to', 'open', or 'navigate to' a page. DO NOT run this for general queries.",
         parameters: {
             type: "object",
             properties: {
@@ -321,14 +322,15 @@ export class AIAssistantService {
             7. Delete Tasks: If the user asks to delete, remove, or clear tasks, use the 'deleteTasks' tool. ALWAYS ask for confirmation before deleting multiple tasks or if the request is ambiguous.
             8. Move/Reschedule Tasks: If the user asks to move, reschedule, or shift tasks, use the 'updateTasks' tool. Check for time conflicts and suggest an alternative time if there is an overlap.
             9. Missed Tasks: If the user missed a task, suggest rescheduling it to their next free time today or the next available day. Use 'updateTasks' to reschedule.
-            10. Navigate App: If the user asks to go to a specific page or feature (e.g., "go to exam mode", "open flashcards", "show my tasks", "open notifications", "go to calendar", "my profile"), use 'navigateApp'.
+            10. Navigate App: ONLY if the user explicitly asks to "go to", "open", or "show" a specific page (e.g., "go to exam mode", "open my tasks", "my profile"), use 'navigateApp'. NEVER use this tool if the user is just asking a question or making a statement.
             11. Update Settings: If the user asks to change their theme (e.g. "dark blue theme", "purple theme", "light mode"), use 'updateUserSettings'. For specific unlisted colors, set theme to 'custom' and provide the HEX code in 'customThemeColor'. ALWAYS ask for confirmation before changing sensitive settings, but for themes, apply them instantly!
             12. Lecture Recording: If the user asks to start or stop recording a lecture, use 'startLectureRecording' or 'stopLectureRecording'.
             13. Study Predictor & Exams: If the user asks "What should I study today?", "Prepare me for next week's exams", "What am I weak at?", use 'analyzeStudyPredictor'.
             14. Focus Mode: If the user asks to start a focus session, study session, or pomodoro timer (e.g., "Start a 25-minute focus session"), use 'startFocusMode'. If they want to stop, use 'stopFocusMode'.
             15. Multi-Step Execution: You can execute multiple tools and commands at once if the user asks for a complex workflow. For example, "Enable focus mode, switch to dark theme, and open my timetable" -> You must invoke 'startFocusMode', 'updateUserSettings', and 'navigateApp' all at once.
             16. File & Data Intelligence: You will receive text content representing uploaded notes, PDFs, or images if the user attaches them. Deeply analyze the information to extract Dates, Subjects, Deadlines, Locations, and Time blocks. Use this data to accurately answer questions or actively generate tasks and study plans.
-            17. Strict Confirmation Control: For sensitive or bulk actions (deleting tasks, bulk modifications), you MUST first ask the user for confirmation and WAIT for their reply BEFORE invoking the tool. DO NOT invoke the tool natively in the same turn you ask for confirmation. EXCEPTION: Theme changes and navigating the app are safe and MUST BE EXECUTED INSTANTLY without confirmation.
+            17. Productivity Support: Read the 'Performance' string in the User Context to check their daily task progress and missed tasks. If their 'Today's Task Progress' is 100%, congratulate them! If they have missed tasks, encourage them to reschedule. If they have a heavy workload, suggest breaks.
+            18. Strict Confirmation Control: For sensitive or bulk actions (deleting tasks, bulk modifications), you MUST first ask the user for confirmation and WAIT for their reply BEFORE invoking the tool. DO NOT invoke the tool natively in the same turn you ask for confirmation. EXCEPTION: Theme changes and navigating the app are safe and MUST BE EXECUTED INSTANTLY without confirmation.
             
             OUTPUT FORMAT:
             You must return your conversational response purely as a valid JSON object. 
@@ -447,15 +449,45 @@ export class AIAssistantService {
                 // New simple regex that relies on the closing </function> tag
                 const looseRegex = /<function=([^>\[\{\s]+)\s*(.*?)(?:<\/function>)/is;
                 const match = failedGen.match(looseRegex);
-                if (match && match[1] && match[2]) {
-                    const funcName = match[1].replace(/["']/g, '').trim(); 
-                    let jsonString = match[2].trim();
-                    // Just in case it ends with an unclosed tag or something weird, we try parsing
+                
+                // Also handle cases where there are spaces, e.g. <function=askUserPreference {"question": "..."}>
+                const spaceRegex = /<function=([^\[\{\s>]+)(?:>|\s+)(.*?)(?:<\/function>)/is;
+                const spaceMatch = failedGen.match(spaceRegex);
+                
+                // Process looseMatch and spaceMatch the same way for robustness
+                const matches = [];
+                if (match && match[1] && match[2]) matches.push(match);
+                if (spaceMatch && spaceMatch[1] && spaceMatch[2]) matches.push(spaceMatch);
+
+                for (let m of matches) {
+                    const funcName = m[1].replace(/["'\(]/g, '').trim();
+                    let jsonString = m[2].trim();
+                    
+                    // Super robust JSON extractor: find the first { or [ and last } or ]
+                    const firstBrace = jsonString.indexOf('{');
+                    const firstBracket = jsonString.indexOf('[');
+                    let first = -1;
+                    if (firstBrace !== -1 && firstBracket !== -1) first = Math.min(firstBrace, firstBracket);
+                    else if (firstBrace !== -1) first = firstBrace;
+                    else if (firstBracket !== -1) first = firstBracket;
+
+                    const lastBrace = jsonString.lastIndexOf('}');
+                    const lastBracket = jsonString.lastIndexOf(']');
+                    let last = -1;
+                    if (lastBrace !== -1 && lastBracket !== -1) last = Math.max(lastBrace, lastBracket);
+                    else if (lastBrace !== -1) last = lastBrace;
+                    else if (lastBracket !== -1) last = lastBracket;
+
+                    if (first !== -1 && last !== -1 && last >= first) {
+                        jsonString = jsonString.slice(first, last + 1);
+                    }
+
                     try {
                         let funcArgs = JSON.parse(jsonString);
                         if (Array.isArray(funcArgs) && funcArgs.length > 0) {
                             funcArgs = funcArgs[0];
                         }
+                        
                         console.log("Recovered tool call:", funcName, funcArgs);
                         return {
                             text: textContent,
@@ -465,32 +497,7 @@ export class AIAssistantService {
                             }]
                         };
                     } catch (parseErr) {
-                        console.error("Could not parse JSON in failed_generation", parseErr);
-                    }
-                }
-                
-                // Also handle cases where there are spaces, e.g. <function=askUserPreference {"question": "..."}>
-                const spaceRegex = /<function=([^\[\{\s>]+)(?:>|\s+)(.*?)(?:<\/function>)/is;
-                const spaceMatch = failedGen.match(spaceRegex);
-                if (spaceMatch && spaceMatch[1] && spaceMatch[2]) {
-                    const funcName = spaceMatch[1].trim();
-                    try {
-                        let jsonString = spaceMatch[2].trim();
-                        if (jsonString.endsWith(">")) jsonString = jsonString.slice(0, -1).trim(); // fallback if it matched a trailing >
-                        let funcArgs = JSON.parse(jsonString);
-                        if (Array.isArray(funcArgs) && funcArgs.length > 0) {
-                            funcArgs = funcArgs[0];
-                        }
-                        console.log("Recovered tool call (spaceMatch):", funcName, funcArgs);
-                        return {
-                            text: textContent,
-                            functionCalls: [{
-                                name: funcName,
-                                args: funcArgs
-                            }]
-                        };
-                    } catch (parseErr) {
-                        console.error("Could not parse JSON in failed_generation spaceMatch", parseErr);
+                        console.error("Could not parse JSON in failed_generation", parseErr, jsonString);
                     }
                 }
             }

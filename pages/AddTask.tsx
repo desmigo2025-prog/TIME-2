@@ -35,6 +35,22 @@ const AddTask = () => {
     const [day, setDay] = useState('Monday');
     const [duration, setDuration] = useState('60');
     const [priority, setPriority] = useState<TaskPriority>(TaskPriority.MEDIUM);
+    const [date, setDate] = useState('');
+
+    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const selectedDate = e.target.value;
+        setDate(selectedDate);
+        if (selectedDate) {
+            const tParts = selectedDate.split('-');
+            if (tParts.length === 3) {
+                const dateObj = new Date(parseInt(tParts[0]), parseInt(tParts[1]) - 1, parseInt(tParts[2]));
+                if (!isNaN(dateObj.getTime())) {
+                    const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dateObj.getDay()];
+                    setDay(dayName);
+                }
+            }
+        }
+    };
 
     // Voice State
     const [isListening, setIsListening] = useState(false);
@@ -50,6 +66,7 @@ const AddTask = () => {
             venue,
             time,
             day,
+            date,
             durationMinutes: parseInt(duration),
             priority: priority,
             status: TaskStatus.PENDING,
@@ -185,6 +202,15 @@ const AddTask = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                      <div>
+                        <label className={`block text-sm opacity-70 mb-1 ${isLightTheme ? 'text-gray-700' : ''}`}>Date</label>
+                        <input 
+                            type="date"
+                            value={date}
+                            onChange={handleDateChange}
+                            className={`w-full border rounded-xl p-4 focus:border-tt-blue focus:outline-none ${isLightTheme ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-white'}`}
+                        />
+                    </div>
+                     <div>
                         <label className={`block text-sm opacity-70 mb-1 ${isLightTheme ? 'text-gray-700' : ''}`}>Day</label>
                         <select 
                             value={day}
@@ -196,6 +222,9 @@ const AddTask = () => {
                             ))}
                         </select>
                     </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className={`block text-sm opacity-70 mb-1 ${isLightTheme ? 'text-gray-700' : ''}`}>Time</label>
                         <input 
@@ -206,11 +235,8 @@ const AddTask = () => {
                             className={`w-full border rounded-xl p-4 focus:border-tt-blue focus:outline-none ${isLightTheme ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-white'}`}
                         />
                     </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
                      <div>
-                        <label className={`block text-sm opacity-70 mb-1 ${isLightTheme ? 'text-gray-700' : ''}`}>Duration (mins)</label>
+                        <label className={`block text-sm opacity-70 mb-1 ${isLightTheme ? 'text-gray-700' : ''}`}>Duration (m)</label>
                         <input 
                             type="number"
                             value={duration}

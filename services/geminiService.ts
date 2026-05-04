@@ -337,6 +337,14 @@ export const parseTimetableWithGemini = async (file: File): Promise<Partial<Task
         // Enforce Day Format
         const validDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
         let day = task.day ? task.day.charAt(0).toUpperCase() + task.day.slice(1) : "Monday";
+        
+        if (task.date) {
+            const dateObj = new Date(task.date);
+            if (!isNaN(dateObj.getTime())) {
+                day = validDays[dateObj.getDay()];
+            }
+        }
+        
         if (!validDays.includes(day)) {
             // Fuzzy match fallback
             day = validDays.find(d => d.startsWith(day.substr(0, 3))) || "Monday";
@@ -439,13 +447,23 @@ export const generateTimetableWithGemini = async (
         const jsonStr = response.text.trim();
         const parsedData = JSON.parse(jsonStr);
 
-        return parsedData.map((task: any) => ({
-            ...task,
-            time: normalizeTime(task.time),
-            venue: task.venue || "Home",
-            confidenceScore: 0.95,
-            validationStatus: 'validated'
-        }));
+        return parsedData.map((task: any) => {
+            let computedDay = task.day || 'Monday';
+            if (task.date) {
+                const dateObj = new Date(task.date);
+                if (!isNaN(dateObj.getTime())) {
+                    computedDay = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dateObj.getDay()];
+                }
+            }
+            return {
+                ...task,
+                day: computedDay,
+                time: normalizeTime(task.time),
+                venue: task.venue || "Home",
+                confidenceScore: 0.95,
+                validationStatus: 'validated'
+            };
+        });
 
     } catch (error) {
         console.error("Gemini Generation Error:", error);
@@ -461,7 +479,7 @@ export const getSmartSuggestions = async (tasks: Task[], progress?: number): Pro
              if (progress === 100) {
                  prompt = "The user has completed 100% of their tasks today! Give them a short, 1-sentence enthusiastic congratulation.";
              } else if (progress > 50) {
-                 prompt = `The user has completed ${progress}% of their tasks today. Based on their remaining tasks: ${JSON.stringify(tasks.map(t => t.title))}, give a 1 sentence motivating tip to keep going string.`;
+                 prompt = `The user has completed ${progress}% of their tasks today. Based on their remaining tasks: ${JSON.stringify(tasks.map(t => t.title))}, give a 1 sentence motivating tip to keep going strong.`;
              } else {
                  prompt = `The user has only completed ${progress}% of their tasks today. Based on their upcoming tasks: ${JSON.stringify(tasks.map(t => t.title))}, give a 1 sentence encouraging tip to focus and finish strong.`;
              }
@@ -841,14 +859,24 @@ export const generateExamScheduleWithGemini = async (
         const jsonStr = response.text.trim();
         const parsedData = JSON.parse(jsonStr);
 
-        const tasks = parsedData.tasks.map((task: any) => ({
-            ...task,
-            time: normalizeTime(task.time),
-            venue: task.venue || "Home",
-            confidenceScore: 0.95,
-            validationStatus: 'validated',
-            category: 'School'
-        }));
+        const tasks = parsedData.tasks.map((task: any) => {
+            let computedDay = task.day || 'Monday';
+            if (task.date) {
+                const dateObj = new Date(task.date);
+                if (!isNaN(dateObj.getTime())) {
+                    computedDay = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dateObj.getDay()];
+                }
+            }
+            return {
+                ...task,
+                day: computedDay,
+                time: normalizeTime(task.time),
+                venue: task.venue || "Home",
+                confidenceScore: 0.95,
+                validationStatus: 'validated',
+                category: 'School'
+            };
+        });
 
         return {
             tasks,

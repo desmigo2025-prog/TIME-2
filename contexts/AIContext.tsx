@@ -464,6 +464,7 @@ export const AIProvider = ({ children }: { children?: ReactNode }) => {
 
         try {
             // Context Building
+            const now = new Date();
             const currentHashPath = window.location.hash.replace('#', '') || '/';
             const currentTheme = user?.aiSettings?.theme || (user?.aiSettings?.natureThemeEnabled ? 'nature' : 'dark');
             const relevantTasks = tasks.filter(t => t.status === TaskStatus.PENDING || t.status === TaskStatus.MISSED);
@@ -474,6 +475,18 @@ export const AIProvider = ({ children }: { children?: ReactNode }) => {
             let completedCount = 0;
             let totalCount = 0;
             const subjectHours: Record<string, number> = {};
+            
+            // Daily Progress Calculation
+            const currentDayName = format(now, 'EEEE');
+            const todayTasks = tasks.filter(t => {
+                if (t.date) return t.date === format(now, 'yyyy-MM-dd');
+                return t.day === currentDayName;
+            });
+            const validTodayTasks = todayTasks; // including missed
+            const completedTodayTasks = validTodayTasks.filter(t => t.status === TaskStatus.COMPLETED);
+            const todaysProgress = validTodayTasks.length > 0 ? Math.round((completedTodayTasks.length / validTodayTasks.length) * 100) : 0;
+            const missedToday = validTodayTasks.filter(t => t.status === TaskStatus.MISSED).length;
+
             tasks.forEach(task => {
                 if (task.category === 'School' || task.title.toLowerCase().includes('study') || task.title.toLowerCase().includes('exam') || task.title.toLowerCase().includes('read')) {
                     totalCount++;
@@ -485,10 +498,9 @@ export const AIProvider = ({ children }: { children?: ReactNode }) => {
                 }
             });
             const progressPercentage = totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100);
-            const performanceSummary = `Overall Progress: ${progressPercentage}%. Study Hours: ${Object.entries(subjectHours).map(([subj, hrs]) => `${subj}: ${hrs.toFixed(1)}h`).join(', ')}.`;
+            const performanceSummary = `Overall Progress: ${progressPercentage}%. Today's Task Progress: ${todaysProgress}%. Missed Tasks Today: ${missedToday}. Study Hours: ${Object.entries(subjectHours).map(([subj, hrs]) => `${subj}: ${hrs.toFixed(1)}h`).join(', ')}.`;
 
             // Exam Countdown
-            const now = new Date();
             const upcomingExamsList = (exams || [])
                 .map(exam => {
                     const examDate = new Date(exam.date);
@@ -621,9 +633,20 @@ export const AIProvider = ({ children }: { children?: ReactNode }) => {
                             aiText += `\n⚠️ Note: Scheduling "${args.title}" at ${args.time} conflicted with another task. I've automatically moved it to the next available slot at ${finalTime}. `;
                         }
 
+                        let computedDayForCreate = args.day;
+                        if (args.date) {
+                            const tParts = args.date.split('-');
+                            if (tParts.length === 3) {
+                                const dateObj = new Date(parseInt(tParts[0]), parseInt(tParts[1]) - 1, parseInt(tParts[2]));
+                                if (!isNaN(dateObj.getTime())) {
+                                    computedDayForCreate = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dateObj.getDay()];
+                                }
+                            }
+                        }
+
                         addTask({
                             title: args.title,
-                            day: args.day,
+                            day: computedDayForCreate,
                             date: args.date,
                             time: finalTime,
                             durationMinutes: newDuration,
@@ -633,7 +656,7 @@ export const AIProvider = ({ children }: { children?: ReactNode }) => {
                             status: TaskStatus.PENDING,
                             category: 'Personal'
                         });
-                        aiText += `I've scheduled "${args.title}" for ${args.day}${args.date ? ` (${args.date})` : ''} at ${args.time}. `;
+                        aiText += `I've scheduled "${args.title}" for ${computedDayForCreate}${args.date ? ` (${args.date})` : ''} at ${args.time}. `;
                         logAction('createTask', `Scheduled "${args.title}"`);
                     
                     } else if (call.name === 'deleteTasks') {
@@ -712,6 +735,17 @@ export const AIProvider = ({ children }: { children?: ReactNode }) => {
                                     const partialUpdate: Partial<Task> = { status: TaskStatus.PENDING };
                                     if (update.day) partialUpdate.day = update.day;
                                     if (update.date) partialUpdate.date = update.date;
+
+                                    if (partialUpdate.date) {
+                                        const tParts = partialUpdate.date.split('-');
+                                        if (tParts.length === 3) {
+                                            const dateObj = new Date(parseInt(tParts[0]), parseInt(tParts[1]) - 1, parseInt(tParts[2]));
+                                            if (!isNaN(dateObj.getTime())) {
+                                                partialUpdate.day = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dateObj.getDay()];
+                                            }
+                                        }
+                                    }
+
                                     partialUpdate.time = finalTime;
                                     if (update.durationMinutes) partialUpdate.durationMinutes = update.durationMinutes;
                                     updateTask(update.id, partialUpdate);
@@ -758,21 +792,35 @@ export const AIProvider = ({ children }: { children?: ReactNode }) => {
                         const args = call.args as any;
                         const tasks = args.tasks as any[];
                         
-                        const draftTasksToSave = tasks.map(t => ({
-                            id: Math.random().toString(36).substr(2, 9),
-                            title: t.title,
-                            day: t.day,
-                            time: t.time,
-                            durationMinutes: t.durationMinutes || 60,
-                            venue: t.venue || 'TBD',
-                            description: t.description || 'AI Suggested Plan',
-                            priority: TaskPriority.MEDIUM,
-                            status: TaskStatus.PENDING, 
-                            category: 'Personal' as "Personal" | "Work" | "School" | "Other",
-                            confidenceScore: 1.0,
-                            parsingMetaData: { confidence: { title: 1, day: 1, time: 1, venue: 1 }, correctionsApplied: [], isLowConfidence: false },
-                            validationStatus: 'needs_review' as any // Mark as review needed so user checks them
-                        }));
+                        const draftTasksToSave = tasks.map(t => {
+                            let computedDay = t.day || 'Monday';
+                            if (t.date) {
+                                // Parse as local time to avoid timezone shifts
+                                const tParts = t.date.split('-');
+                                if (tParts.length === 3) {
+                                  const dateObj = new Date(parseInt(tParts[0]), parseInt(tParts[1]) - 1, parseInt(tParts[2]));
+                                  if (!isNaN(dateObj.getTime())) {
+                                      computedDay = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dateObj.getDay()];
+                                  }
+                                }
+                            }
+                            return {
+                                id: Math.random().toString(36).substr(2, 9),
+                                title: t.title,
+                                day: computedDay,
+                                date: t.date,
+                                time: t.time,
+                                durationMinutes: t.durationMinutes || 60,
+                                venue: t.venue || 'TBD',
+                                description: t.description || 'AI Suggested Plan',
+                                priority: TaskPriority.MEDIUM,
+                                status: TaskStatus.PENDING, 
+                                category: 'Personal' as "Personal" | "Work" | "School" | "Other",
+                                confidenceScore: 1.0,
+                                parsingMetaData: { confidence: { title: 1, day: 1, time: 1, venue: 1 }, correctionsApplied: [], isLowConfidence: false },
+                                validationStatus: 'needs_review' as any // Mark as review needed so user checks them
+                            };
+                        });
                         
                         saveDraft(draftTasksToSave);
                         aiText += args.planSummary || `I've generated a timetable with ${tasks.length} tasks. Please review them.`;
