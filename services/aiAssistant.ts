@@ -423,9 +423,11 @@ export class AIAssistantService {
             // Sometimes it's a string inside error.message
             if (!rawError?.failed_generation && error?.message && error.message.includes('failed_generation')) {
                 try {
-                    const match = error.message.match(/400\s+(\{.*\})/);
-                    if (match && match[1]) {
-                        rawError = JSON.parse(match[1]).error || JSON.parse(match[1]);
+                    // Try to match anything that looks like a JSON object containing failed_generation
+                    const jsonMatch = error.message.match(/(\{.*"failed_generation".*\})/s);
+                    if (jsonMatch && jsonMatch[1]) {
+                        const parsed = JSON.parse(jsonMatch[1]);
+                        rawError = parsed.error || parsed;
                     }
                 } catch(e){}
             }
@@ -447,7 +449,7 @@ export class AIAssistantService {
                 }
 
                 // New simple regex that relies on the closing </function> tag
-                const looseRegex = /<function=([^>\[\{\s]+)\s*(.*?)(?:<\/function>)/is;
+                const looseRegex = /<function=([^>\[\{\s=]+)=?\s*(.*?)(?:<\/function>)/is;
                 const match = failedGen.match(looseRegex);
                 
                 // Also handle cases where there are spaces, e.g. <function=askUserPreference {"question": "..."}>
@@ -483,7 +485,16 @@ export class AIAssistantService {
                     }
 
                     try {
-                        let funcArgs = JSON.parse(jsonString);
+                        // Try unescaping if it has literal backslashes
+                        let cleanJsonString = jsonString;
+                        if (cleanJsonString.includes('\\"')) {
+                            // First try parsing as a JSON string to unescape it, or just use string replace
+                            cleanJsonString = cleanJsonString.replace(/\\"/g, '"');
+                        }
+                        // Also remove any literal newlines that might break parsing
+                        cleanJsonString = cleanJsonString.replace(/\\n/g, ' ');
+
+                        let funcArgs = JSON.parse(cleanJsonString);
                         if (Array.isArray(funcArgs) && funcArgs.length > 0) {
                             funcArgs = funcArgs[0];
                         }
@@ -497,7 +508,7 @@ export class AIAssistantService {
                             }]
                         };
                     } catch (parseErr) {
-                        console.error("Could not parse JSON in failed_generation", parseErr, jsonString);
+                        console.error("Could not parse JSON in failed_generation:", parseErr, jsonString);
                     }
                 }
             }

@@ -28,6 +28,7 @@ interface TaskContextType {
   
   // External
   syncGoogleCalendar: () => Promise<void>;
+  syncOutlookCalendar: () => Promise<void>;
   importTasksFromCSV: (csvContent: string) => Promise<number>;
   importTasks: (tasks: Task[]) => Promise<number>;
   refreshTasks: () => void;
@@ -44,6 +45,37 @@ interface TaskContextType {
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
+
+function getTaskDates(task: Task): { start: Date, end: Date } {
+    let startDate = new Date();
+    
+    if (task.date) {
+        const tParts = task.date.split('-');
+        if (tParts.length === 3) {
+            startDate = new Date(parseInt(tParts[0]), parseInt(tParts[1]) - 1, parseInt(tParts[2]));
+        }
+    } else {
+        const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const targetDayIdx = daysOfWeek.indexOf(task.day);
+        if (targetDayIdx !== -1) {
+            const currentDayIdx = startDate.getDay();
+            let distance = targetDayIdx - currentDayIdx;
+            if (distance < 0) {
+                distance += 7;
+            }
+            startDate.setDate(startDate.getDate() + distance);
+        }
+    }
+    
+    const timeParts = task.time.split(':');
+    if (timeParts.length === 2) {
+        startDate.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]), 0, 0);
+    }
+    
+    const endDate = new Date(startDate.getTime() + (task.durationMinutes || 60) * 60000);
+    
+    return { start: startDate, end: endDate };
+}
 
 export const TaskProvider = ({ children }: { children?: ReactNode }) => {
   const { user, logActivity, updateProfile } = useAuth();
@@ -206,10 +238,18 @@ export const TaskProvider = ({ children }: { children?: ReactNode }) => {
                     let isMissed = task.status === TaskStatus.MISSED;
 
                     if (!isMissed && taskDayIndex !== -1) {
-                        if (taskDayIndex < currentDayIndex) {
-                            isMissed = true;
-                        } else if (taskDayIndex === currentDayIndex && task.time < currentTime) {
-                            isMissed = true;
+                        if (task.date) {
+                            const taskDateTimeStr = `${task.date}T${task.time.length === 5 ? task.time + ':00' : task.time}`;
+                            const taskDateTime = new Date(taskDateTimeStr);
+                            if (taskDateTime.getTime() < now.getTime()) {
+                                isMissed = true;
+                            }
+                        } else {
+                            if (taskDayIndex < currentDayIndex) {
+                                isMissed = true;
+                            } else if (taskDayIndex === currentDayIndex && task.time < currentTime) {
+                                isMissed = true;
+                            }
                         }
                     }
 
@@ -228,7 +268,9 @@ export const TaskProvider = ({ children }: { children?: ReactNode }) => {
                         // Actually, if it's rescheduled and missed again, its ID is still in promptedMissedTaskIds.
                         // We should remove it from promptedMissedTaskIds when it is rescheduled. (Already done in rescheduleTask)
                         
-                        if (!foundMissedTask && !missedTaskToReschedule && !promptedMissedTaskIds.has(task.id)) {
+                        const isRecurring = (task.recurrence && task.recurrence !== 'none') || task.parentTaskId;
+                        
+                        if (!isRecurring && !foundMissedTask && !missedTaskToReschedule && !promptedMissedTaskIds.has(task.id)) {
                             foundMissedTask = missedTask;
                         }
                         return missedTask;
@@ -313,9 +355,45 @@ export const TaskProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const addTask = (task: Omit<Task, 'id'>) => {
-    const newTask: Task = { ...task, id: Math.random().toString(36).substr(2, 9) };
-    setTasks(prev => [...prev, newTask]);
-    logActivity(`Added task: ${newTask.title}`);
+    const parentId = Math.random().toString(36).substr(2, 9);
+    const newTask: Task = { ...task, id: parentId };
+
+    const generatedTasks: Task[] = [newTask];
+
+    if (task.recurrence && task.recurrence !== 'none' && task.date && task.recurrenceEndDate) {
+        let currentDate = new Date(task.date);
+        const endDate = new Date(task.recurrenceEndDate);
+        endDate.setHours(23, 59, 59, 999);
+
+        let safetyCount = 0;
+        
+        while (safetyCount < 365) {
+            if (task.recurrence === 'daily') {
+                currentDate.setDate(currentDate.getDate() + 1);
+            } else if (task.recurrence === 'weekly') {
+                currentDate.setDate(currentDate.getDate() + 7);
+            } else if (task.recurrence === 'monthly') {
+                currentDate.setMonth(currentDate.getMonth() + 1);
+            }
+
+            if (currentDate > endDate) break;
+
+            const nextTaskDateStr = currentDate.toISOString().split('T')[0];
+            const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][currentDate.getDay()];
+            
+            generatedTasks.push({
+                ...task,
+                id: Math.random().toString(36).substr(2, 9),
+                date: nextTaskDateStr,
+                day: dayName,
+                parentTaskId: parentId,
+            });
+            safetyCount++;
+        }
+    }
+
+    setTasks(prev => [...prev, ...generatedTasks]);
+    logActivity(`Added task: ${newTask.title}${generatedTasks.length > 1 ? ` (+${generatedTasks.length - 1} recurrences)` : ''}`);
   };
 
   const addExam = (exam: Omit<Exam, 'id'>) => {
@@ -370,65 +448,48 @@ export const TaskProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const syncGoogleCalendar = async () => {
-      // CLEAR USER CONSENT
-      const userConsent = window.confirm("Privacy Notice: This app only accesses your calendar events to import and manage your schedules. No emails, files, contacts, or sensitive account data are accessed.\n\nDo you wish to continue?");
+      const userConsent = window.confirm("Privacy Notice: This app will request permission to read and write to your Google Calendar to seamlessly import and export events.\n\nDo you wish to continue?");
       if (!userConsent) return;
 
       setSyncStatus('saving');
       try {
-          // Re-authenticate to get a fresh Google OAuth Access Token
           const { signInWithPopup, GoogleAuthProvider } = await import('firebase/auth');
           const { auth } = await import('../firebase');
           
           const provider = new GoogleAuthProvider();
-          provider.addScope('https://www.googleapis.com/auth/calendar.events.readonly');
-          // Scoped down to events only to respect privacy and "only import user's calendar".
-
-          // Note: using prompt: 'consent' forces getting a refresh token, but we only need access token for now
+          provider.addScope('https://www.googleapis.com/auth/calendar.events');
           provider.setCustomParameters({ prompt: 'select_account' });
           
           const result = await signInWithPopup(auth, provider);
           const credential = GoogleAuthProvider.credentialFromResult(result);
           const token = credential?.accessToken;
 
-          if (!token) {
-              throw new Error("Could not retrieve Google Calendar access token.");
-          }
+          if (!token) throw new Error("Could not retrieve Google Calendar access token.");
 
-          // 1. Fetch events from Google Calendar
+          // 1. Fetch
           const now = new Date();
           const timeMin = now.toISOString();
-          const timeMax = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(); // Next 7 days
+          const timeMax = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
           
           const importResponse = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`, {
-              headers: {
-                  'Authorization': `Bearer ${token}`,
-                  'Content-Type': 'application/json'
-              }
+              headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
           });
           
-          if (!importResponse.ok) {
-              const errorText = await importResponse.text();
-              throw new Error('Failed to import events from Google Calendar: ' + errorText);
-          }
+          if (!importResponse.ok) throw new Error('Failed to import events from Google Calendar: ' + await importResponse.text());
           
           const data = await importResponse.json();
           const events = data.items || [];
+          let newImportedCount = 0;
           
           if (events && events.length > 0) {
               const importedTasks: Task[] = events.map((event: any) => {
                   let start = new Date();
                   let end = new Date();
-                  if (event.start?.dateTime) {
-                      start = new Date(event.start.dateTime);
-                  } else if (event.start?.date) {
-                      start = new Date(event.start.date);
-                  }
-                  if (event.end?.dateTime) {
-                      end = new Date(event.end.dateTime);
-                  } else if (event.end?.date) {
-                      end = new Date(event.end.date);
-                  }
+                  if (event.start?.dateTime) start = new Date(event.start.dateTime);
+                  else if (event.start?.date) start = new Date(event.start.date);
+                  
+                  if (event.end?.dateTime) end = new Date(event.end.dateTime);
+                  else if (event.end?.date) end = new Date(event.end.date);
                   
                   const durationMinutes = Math.round((end.getTime() - start.getTime()) / 60000);
                   
@@ -448,61 +509,163 @@ export const TaskProvider = ({ children }: { children?: ReactNode }) => {
               });
 
               setTasks(prev => {
-                  // SMARTER DUPLICATE AVOIDANCE & OVERLAP PREVENTION
                   const prevFiltered = prev.filter(t => !t.isGoogleEvent);
-                  
-                  // Filter out imported tasks that directly overlap with our manual tasks
                   const uniqueImported = importedTasks.filter(impTask => {
-                     // Check if an existing task has the exact same title, day, and time
-                     const isExactDuplicate = prevFiltered.some(pt => 
-                        pt.title.toLowerCase() === impTask.title.toLowerCase() && 
-                        pt.day === impTask.day && 
-                        pt.time === impTask.time
-                     );
-                     
+                     const isExactDuplicate = prevFiltered.some(pt => pt.title.toLowerCase() === impTask.title.toLowerCase() && pt.day === impTask.day && pt.time === impTask.time);
                      if (isExactDuplicate) return false;
-                     
-                     // Check for time overlap 
-                     const isOverlapping = prevFiltered.some(pt => {
-                         if (pt.day !== impTask.day) return false;
-                         
-                         const ptStartMinutes = parseInt(pt.time.split(':')[0]) * 60 + parseInt(pt.time.split(':')[1]);
-                         const ptEndMinutes = ptStartMinutes + pt.durationMinutes;
-                         
-                         const impStartMinutes = parseInt(impTask.time.split(':')[0]) * 60 + parseInt(impTask.time.split(':')[1]);
-                         const impEndMinutes = impStartMinutes + impTask.durationMinutes;
-                         
-                         // Overlap condition
-                         return (ptStartMinutes < impEndMinutes && ptEndMinutes > impStartMinutes);
-                     });
-                     
-                     return !isOverlapping;
+                     return true;
                   });
+                  newImportedCount = uniqueImported.length;
                   return [...prevFiltered, ...uniqueImported];
               });
           }
 
-          // We intentionally avoid pushing tasks back to Google Calendar by default
-          // to maintain our calendar.readonly promise and reduce security warnings.
-          
-          // Update User Sync Status
-          if (user) {
-              await updateProfile({
-                  googleIntegration: {
-                      isConnected: true,
-                      email: user.email || '',
-                      lastSync: new Date().toISOString()
+          // 2. Export local tasks to Google Calendar
+          // We need to use 'tasks' from state. But setTasks is async. So we'll use prev state equivalent conceptually, 
+          // or just the current 'tasks' closure.
+          const tasksToExport = tasks.filter(t => t.status === TaskStatus.PENDING && !t.isGoogleEvent && !t.isOutlookEvent);
+          let exportedCount = 0;
+          for (const task of tasksToExport) {
+              try {
+                  const { start, end } = getTaskDates(task);
+                  const exportResponse = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events`, {
+                      method: 'POST',
+                      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                          summary: task.title,
+                          description: task.description || 'Exported from Timetable App',
+                          location: task.venue,
+                          start: { dateTime: start.toISOString() },
+                          end: { dateTime: end.toISOString() }
+                      })
+                  });
+                  if (exportResponse.ok) {
+                      exportedCount++;
+                      updateTask(task.id, { isGoogleEvent: true }); // Mark as synced so we don't duplicate export
                   }
-              });
+              } catch (e) {
+                  console.warn("Failed to export task", task.id, e);
+              }
+          }
+
+          if (user) {
+              await updateProfile({ googleIntegration: { isConnected: true, email: user.email || '', lastSync: new Date().toISOString() } });
           }
 
           setSyncStatus('synced');
-          logActivity(`Synced with Google Calendar. Downloaded ${events.length}.`);
-          alert('Successfully imported real-time events from Google Calendar!');
+          logActivity(`Synced config with Google Calendar. Imported: ${newImportedCount}, Exported: ${exportedCount}`);
+          alert(`Successfully synced with Google Calendar!\nImported: ${newImportedCount} events\nExported: ${exportedCount} tasks`);
       } catch (error: any) {
           console.error("Google Calendar sync error:", error);
           setSyncStatus('error');
           alert('Failed to sync with Google Calendar. Error: ' + error.message);
+      }
+  };
+
+  const syncOutlookCalendar = async () => {
+      const userConsent = window.confirm("Privacy Notice: This app will request permission to read and write to your Outlook Calendar to seamlessly import and export events.\n\nDo you wish to continue?");
+      if (!userConsent) return;
+
+      setSyncStatus('saving');
+      try {
+          const { signInWithPopup, OAuthProvider } = await import('firebase/auth');
+          const { auth } = await import('../firebase');
+          
+          const provider = new OAuthProvider('microsoft.com');
+          provider.addScope('Calendars.ReadWrite');
+          provider.setCustomParameters({ prompt: 'select_account' });
+          
+          const result = await signInWithPopup(auth, provider);
+          const credential = OAuthProvider.credentialFromResult(result);
+          const token = credential?.accessToken;
+
+          if (!token) throw new Error("Could not retrieve Outlook Calendar access token.");
+
+          // 1. Fetch
+          const now = new Date();
+          const startDateTime = now.toISOString();
+          const endDateTime = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+          
+          const importResponse = await fetch(`https://graph.microsoft.com/v1.0/me/calendarView?startDateTime=${encodeURIComponent(startDateTime)}&endDateTime=${encodeURIComponent(endDateTime)}&$select=subject,bodyPreview,start,end,location`, {
+              headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+          });
+          
+          if (!importResponse.ok) throw new Error('Failed to import events from Outlook Calendar: ' + await importResponse.text());
+          
+          const data = await importResponse.json();
+          const events = data.value || [];
+          let newImportedCount = 0;
+          
+          if (events && events.length > 0) {
+              const importedTasks: Task[] = events.map((event: any) => {
+                  const start = new Date(event.start?.dateTime + 'Z');
+                  const end = new Date(event.end?.dateTime + 'Z');
+                  const durationMinutes = Math.round((end.getTime() - start.getTime()) / 60000);
+                  
+                  return {
+                      id: 'o_' + event.id,
+                      title: event.subject || 'Outlook Event',
+                      description: event.bodyPreview || 'Imported from Outlook Calendar',
+                      day: format(start, 'EEEE'),
+                      time: format(start, 'HH:mm'),
+                      durationMinutes: durationMinutes > 0 ? durationMinutes : 60,
+                      venue: event.location?.displayName || '',
+                      priority: TaskPriority.MEDIUM,
+                      status: TaskStatus.PENDING,
+                      category: 'Work',
+                      isOutlookEvent: true
+                  };
+              });
+
+              setTasks(prev => {
+                  const prevFiltered = prev.filter(t => !t.isOutlookEvent);
+                  const uniqueImported = importedTasks.filter(impTask => {
+                     const isExactDuplicate = prevFiltered.some(pt => pt.title.toLowerCase() === impTask.title.toLowerCase() && pt.day === impTask.day && pt.time === impTask.time);
+                     if (isExactDuplicate) return false;
+                     return true;
+                  });
+                  newImportedCount = uniqueImported.length;
+                  return [...prevFiltered, ...uniqueImported];
+              });
+          }
+
+          // 2. Export local tasks to Outlook Calendar
+          const tasksToExport = tasks.filter(t => t.status === TaskStatus.PENDING && !t.isGoogleEvent && !t.isOutlookEvent);
+          let exportedCount = 0;
+          for (const task of tasksToExport) {
+              try {
+                  const { start, end } = getTaskDates(task);
+                  const exportResponse = await fetch(`https://graph.microsoft.com/v1.0/me/events`, {
+                      method: 'POST',
+                      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                          subject: task.title,
+                          body: { contentType: "HTML", content: task.description || 'Exported from Timetable App' },
+                          start: { dateTime: start.toISOString(), timeZone: "UTC" },
+                          end: { dateTime: end.toISOString(), timeZone: "UTC" },
+                          location: { displayName: task.venue || '' }
+                      })
+                  });
+                  if (exportResponse.ok) {
+                      exportedCount++;
+                      updateTask(task.id, { isOutlookEvent: true }); // Mark as synced
+                  }
+              } catch (e) {
+                  console.warn("Failed to export task", task.id, e);
+              }
+          }
+
+          if (user) {
+              await updateProfile({ outlookIntegration: { isConnected: true, email: user.email || '', lastSync: new Date().toISOString() } });
+          }
+
+          setSyncStatus('synced');
+          logActivity(`Synced config with Outlook Calendar. Imported: ${newImportedCount}, Exported: ${exportedCount}`);
+          alert(`Successfully synced with Outlook Calendar!\nImported: ${newImportedCount} events\nExported: ${exportedCount} tasks`);
+      } catch (error: any) {
+          console.error("Outlook Calendar sync error:", error);
+          setSyncStatus('error');
+          alert('Failed to sync with Outlook Calendar. Error: ' + error.message);
       }
   };
 
@@ -607,7 +770,7 @@ export const TaskProvider = ({ children }: { children?: ReactNode }) => {
         tasks, draftTasks, history, syncStatus, exams,
         addTask, updateTask, deleteTask, deleteTasks, clearTasks, reorderTasks, addExam,
         saveDraft, finalizeDraft, discardDraft, revertToVersion,
-        syncGoogleCalendar, importTasksFromCSV, importTasks, refreshTasks,
+        syncGoogleCalendar, syncOutlookCalendar, importTasksFromCSV, importTasks, refreshTasks,
         upcomingTasks, ongoingTasks, completedTasks,
         missedTaskToReschedule, setMissedTaskToReschedule, rescheduleTask
     }}>

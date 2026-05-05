@@ -121,6 +121,7 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
                         passkeyHash: undefined,
                         backgroundAlertsEnabled: false,
                         googleIntegration: { isConnected: !!firebaseUser.providerData.find(p => p.providerId === 'google.com'), email: firebaseUser.email || undefined },
+                        outlookIntegration: { isConnected: !!firebaseUser.providerData.find(p => p.providerId === 'microsoft.com'), email: firebaseUser.email || undefined },
                         excelIntegration: {},
                         loginAttempts: 0,
                         lockUntil: null
@@ -212,6 +213,7 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
                       passkeyHash: undefined,
                       backgroundAlertsEnabled: false,
                       googleIntegration: { isConnected: false },
+                      outlookIntegration: { isConnected: false },
                       excelIntegration: {},
                       loginAttempts: 0,
                       lockUntil: null
@@ -316,6 +318,7 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
                   passkeyHash: undefined,
                   backgroundAlertsEnabled: false,
                   googleIntegration: { isConnected: true, email: firebaseUser.email || undefined },
+                  outlookIntegration: { isConnected: false },
                   excelIntegration: {},
                   loginAttempts: 0,
                   lockUntil: null
@@ -391,6 +394,7 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
               passkeyHash: undefined,
               backgroundAlertsEnabled: false,
               googleIntegration: { isConnected: false },
+              outlookIntegration: { isConnected: false },
               excelIntegration: {},
               loginAttempts: 0,
               lockUntil: null

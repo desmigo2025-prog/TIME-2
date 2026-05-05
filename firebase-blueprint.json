@@ -18,6 +18,7 @@
             "passkeyHash": { "type": "string" },
             "backgroundAlertsEnabled": { "type": "boolean" },
             "googleIntegration": { "type": "object" },
+            "outlookIntegration": { "type": "object" },
             "excelIntegration": { "type": "object" },
             "loginAttempts": { "type": "number" },
             "lockUntil": { "type": "number" },

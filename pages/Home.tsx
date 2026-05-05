@@ -32,7 +32,7 @@ const Home = () => {
 
   const isLightTheme = theme === 'nature' || theme === 'ocean' || theme === 'sunset' || theme === 'ladies' || theme === 'white' || isCustomLight();
   const isCustomTheme = theme === 'custom';
-  const { tasks, upcomingTasks, ongoingTasks, exams, syncGoogleCalendar, updateTask } = useTasks();
+  const { tasks, upcomingTasks, ongoingTasks, exams, syncGoogleCalendar, syncOutlookCalendar, updateTask } = useTasks();
   const { startTask } = useActiveTask();
   const { unreadCount } = useAnnouncements();
   const { latestGreeting, dismissGreeting } = useAI();
@@ -335,6 +335,16 @@ const Home = () => {
                      <p className="font-mono font-black text-xl text-current">{(currentTask || nextTask).durationMinutes}m</p>
                  </div>
              </div>
+             
+             {((currentTask || nextTask).reminderTime || (currentTask || nextTask).reminderMessage) && (
+                 <div className="mt-4 bg-blue-500/10 border border-blue-500/20 text-blue-500 p-3 rounded-xl flex items-start gap-2 text-sm font-medium">
+                     <Clock size={16} className="mt-0.5 shrink-0" />
+                     <div className="flex flex-col">
+                         {(currentTask || nextTask).reminderTime && <span className="font-bold">Reminder Set: {(currentTask || nextTask).reminderTime}</span>}
+                         {(currentTask || nextTask).reminderMessage && <span className="opacity-90 mt-0.5 italic">"{(currentTask || nextTask).reminderMessage}"</span>}
+                     </div>
+                 </div>
+             )}
           </div>
         ) : (
           <div className="text-center py-12 relative z-10">
@@ -395,7 +405,14 @@ const Home = () => {
 
         <Card className="flex flex-col items-center justify-center gap-3 p-5 group hover:bg-gradient-to-b hover:from-blue-500/5 hover:to-transparent border-blue-500/20 hover:border-blue-500/40 cursor-pointer transition-all duration-300 hover:-translate-y-1 text-center" onClick={async () => {
             try {
-                await syncGoogleCalendar();
+                if (user?.outlookIntegration?.isConnected && !user?.googleIntegration?.isConnected) {
+                    await syncOutlookCalendar();
+                } else if (!user?.outlookIntegration?.isConnected && user?.googleIntegration?.isConnected) {
+                    await syncGoogleCalendar();
+                } else {
+                    // Default to Google if both or neither are connected, or could prompt. We'll try Google.
+                    await syncGoogleCalendar();
+                }
             } catch (e: any) {
                 alert(e.message || "Failed to trigger sync");
             }

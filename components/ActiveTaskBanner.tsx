@@ -17,6 +17,8 @@ const ActiveTaskBanner = () => {
     const seconds = timeLeft % 60;
     const progressPercent = Math.max(0, Math.min(100, 100 - (timeLeft / (activeTask.durationMinutes * 60)) * 100));
 
+    const isCompleted = timeLeft === 0;
+
     return (
         <div className="relative overflow-hidden mb-6 rounded-2xl bg-gradient-to-r from-tt-blue to-purple-600 text-white shadow-[0_0_40px_rgba(30,144,255,0.4)] border border-white/20 animate-in slide-in-from-top-4">
             {/* Glowing background effects */}
@@ -27,37 +29,49 @@ const ActiveTaskBanner = () => {
                 
                 {/* Left: Info */}
                 <div className="flex-1 text-center sm:text-left">
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/20 text-xs font-black uppercase tracking-widest mb-3 backdrop-blur-md">
-                        <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-green-400 animate-pulse' : 'bg-yellow-400'}`}></span>
-                        {isActive ? 'In Progress' : 'Paused'}
+                    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/20 text-xs font-black uppercase tracking-widest mb-3 backdrop-blur-md ${isCompleted ? 'bg-green-400/30' : ''}`}>
+                        <span className={`w-2 h-2 rounded-full ${isCompleted ? 'bg-green-300' : isActive ? 'bg-green-400 animate-pulse' : 'bg-yellow-400'}`}></span>
+                        {isCompleted ? 'Completed' : isActive ? 'In Progress' : 'Paused'}
                     </div>
-                    <h2 className="text-2xl font-black tracking-tight drop-shadow-sm truncate w-full max-w-sm sm:max-w-md">{activeTask.title}</h2>
+                    <h2 className={`text-2xl font-black tracking-tight drop-shadow-sm truncate w-full max-w-sm sm:max-w-md ${isCompleted ? 'line-through opacity-80' : ''}`}>{activeTask.title}</h2>
                     <p className="text-sm opacity-80 mt-1">{activeTask.venue || 'No venue set'}</p>
                 </div>
 
-                {/* Center: Timer */}
+                {/* Center: Timer or Completed Message */}
                 <div className="flex flex-col items-center">
-                    <div className="text-5xl font-black font-mono tabular-nums tracking-tighter drop-shadow-lg">
-                        {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
-                    </div>
-                    <div className="text-xs font-bold uppercase tracking-widest opacity-80 mt-1">Remaining</div>
+                    {isCompleted ? (
+                        <div className="text-4xl font-black tracking-tighter drop-shadow-lg text-green-200">
+                            Done!
+                        </div>
+                    ) : (
+                        <>
+                            <div className="text-5xl font-black font-mono tabular-nums tracking-tighter drop-shadow-lg">
+                                {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+                            </div>
+                            <div className="text-xs font-bold uppercase tracking-widest opacity-80 mt-1">Remaining</div>
+                        </>
+                    )}
                 </div>
 
                 {/* Right: Controls */}
                 <div className="flex items-center gap-3">
-                    {isActive ? (
-                        <button onClick={pauseTask} className="w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md flex items-center justify-center transition-colors shadow-inner" title="Pause">
-                            <Pause size={24} className="fill-white text-white" />
-                        </button>
-                    ) : (
-                        <button onClick={resumeTask} className="w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md flex items-center justify-center transition-colors shadow-inner" title="Resume">
-                            <Play size={24} className="fill-white text-white ml-1" />
-                        </button>
+                    {!isCompleted && (
+                        <>
+                            {isActive ? (
+                                <button onClick={pauseTask} className="w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md flex items-center justify-center transition-colors shadow-inner" title="Pause">
+                                    <Pause size={24} className="fill-white text-white" />
+                                </button>
+                            ) : (
+                                <button onClick={resumeTask} className="w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md flex items-center justify-center transition-colors shadow-inner" title="Resume">
+                                    <Play size={24} className="fill-white text-white ml-1" />
+                                </button>
+                            )}
+                            <button onClick={endTaskEarly} className="px-4 py-3 rounded-xl bg-red-500 hover:bg-red-600 transition-colors shadow-md text-sm font-black flex items-center gap-2" title="End Task Early">
+                                <Square size={16} className="fill-white" />
+                                End
+                            </button>
+                        </>
                     )}
-                    <button onClick={endTaskEarly} className="px-4 py-3 rounded-xl bg-red-500 hover:bg-red-600 transition-colors shadow-md text-sm font-black flex items-center gap-2" title="End Task Early">
-                        <Square size={16} className="fill-white" />
-                        End
-                    </button>
                 </div>
             </div>
 

@@ -14,7 +14,7 @@ import AIAvatar from '../components/AIAvatar';
 
 const Profile = () => {
   const { user, logout, updateProfile, activityLog, setPasskey, removePasskey, recoverAccount } = useAuth();
-  const { tasks, importTasksFromCSV, syncGoogleCalendar, importTasks } = useTasks();
+  const { tasks, importTasksFromCSV, syncGoogleCalendar, syncOutlookCalendar, importTasks } = useTasks();
   const { isPro, canAddLink, incrementLinkUsage, getUsageStats } = useUsage();
   const { aiActionsLog } = useAI();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -328,10 +328,34 @@ const Profile = () => {
       }
   };
 
+  const handleOutlookConnect = async () => {
+      // Check if not Pro and already has another integration
+      if (!isPro && user?.emailSummaryUsed) {
+          setShowUpgradeModal(true);
+          return;
+      }
+      setIntegrationLoading(true);
+      try {
+          await syncOutlookCalendar();
+      } catch (error) {
+          console.error(error);
+      } finally {
+          setIntegrationLoading(false);
+      }
+  };
+
   const handleGoogleDisconnect = () => {
       if (window.confirm("Disconnect Google Calendar? This will stop future syncs.")) {
           updateProfile({
               googleIntegration: { isConnected: false }
+          });
+      }
+  };
+
+  const handleOutlookDisconnect = () => {
+      if (window.confirm("Disconnect Outlook Calendar? This will stop future syncs.")) {
+          updateProfile({
+              outlookIntegration: { isConnected: false }
           });
       }
   };
@@ -424,10 +448,10 @@ const Profile = () => {
   const Section = ({ title, icon: Icon, id, children }: any) => {
     const isExpanded = activeCategory === id;
     return (
-      <div className={`border rounded-2xl overflow-hidden transition-colors duration-300 ${isLightTheme ? 'border-gray-200 bg-white shadow-sm' : 'border-gray-800 bg-gray-900 shadow-lg'}`}>
+      <div className={`border rounded-2xl overflow-hidden transition-colors duration-300 backdrop-blur-md ${isLightTheme ? 'border-gray-200/50 bg-white/70 shadow-sm' : 'border-gray-700/50 bg-gray-900/60 shadow-lg'}`}>
         <button 
           onClick={() => toggleSection(id)}
-          className={`w-full flex items-center justify-between p-4 transition-colors ${isLightTheme ? 'hover:bg-gray-50' : 'hover:bg-gray-800'}`}
+          className={`w-full flex items-center justify-between p-4 transition-colors ${isLightTheme ? 'hover:bg-white/40' : 'hover:bg-gray-800/40'}`}
         >
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-lg ${isLightTheme ? 'bg-black/5' : 'bg-white/5'}`}>
@@ -451,7 +475,7 @@ const Profile = () => {
               transition={{ duration: 0.3, ease: 'easeInOut' }}
               className="overflow-hidden"
             >
-              <div className={`p-4 border-t ${isLightTheme ? 'border-gray-200' : 'border-gray-800'} space-y-4`}>
+              <div className={`p-4 border-t ${isLightTheme ? 'border-gray-200/50' : 'border-gray-700/50'} space-y-4`}>
                 {children}
               </div>
             </motion.div>
@@ -462,16 +486,16 @@ const Profile = () => {
   };
 
   return (
-    <div className="space-y-6 pb-20 relative">
+    <div className={`space-y-6 pb-20 relative ${isLightTheme ? 'text-gray-900' : 'text-white'}`}>
       <h1 className="text-2xl font-bold">My Account</h1>
 
       {/* PIN Modal */}
       {showPinModal && (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-              <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-xs shadow-2xl animate-fade-in">
+              <div className={`${isLightTheme ? 'bg-white border-gray-200' : 'bg-gray-900 border-gray-700'} border rounded-2xl p-6 w-full max-w-xs shadow-2xl animate-fade-in`}>
                   <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-xl font-bold text-white">Set 4-Digit PIN</h3>
-                      <button onClick={() => setShowPinModal(false)} className="text-gray-400 hover:text-white"><X size={20} /></button>
+                      <h3 className={`text-xl font-bold ${isLightTheme ? 'text-gray-900' : 'text-white'}`}>Set 4-Digit PIN</h3>
+                      <button onClick={() => setShowPinModal(false)} className="text-gray-400 hover:text-gray-800 dark:hover:text-white"><X size={20} /></button>
                   </div>
                   
                   <div className="flex justify-center gap-4 mb-8">
@@ -800,10 +824,10 @@ const Profile = () => {
                               />
                               <div className="flex-1">
                                   <div 
-                                      className="h-10 rounded-lg w-full flex items-center justify-center text-white font-medium text-sm shadow-inner"
+                                      className="h-10 rounded-lg w-full flex items-center justify-center font-medium text-sm shadow-inner relative overflow-hidden"
                                       style={{ backgroundColor: user?.aiSettings?.customThemeColor || '#0F172A' }}
                                   >
-                                      Live Preview
+                                      <span className="text-white mix-blend-difference relative z-10 font-bold">Live Preview</span>
                                   </div>
                               </div>
                           </div>
@@ -1049,13 +1073,13 @@ const Profile = () => {
                               <MoreVertical size={16} />
                           </button>
                           {showLinkMenu && (
-                              <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-10 py-1">
+                              <div className={`absolute right-0 mt-1 w-48 rounded-lg shadow-xl border z-10 py-1 ${isLightTheme ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
                                   <button
                                       onClick={() => {
                                           setShowLinkHistoryModal(true);
                                           setShowLinkMenu(false);
                                       }}
-                                      className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                                      className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors ${isLightTheme ? 'hover:bg-gray-50' : 'hover:bg-gray-700/50'}`}
                                   >
                                       <List size={14} /> View Link History
                                   </button>
@@ -1064,7 +1088,7 @@ const Profile = () => {
                                           setShowLinkHistoryModal(true);
                                           setShowLinkMenu(false);
                                       }}
-                                      className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                                      className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors ${isLightTheme ? 'hover:bg-gray-50' : 'hover:bg-gray-700/50'}`}
                                   >
                                       <Settings size={14} /> Manage Links
                                   </button>
@@ -1192,6 +1216,49 @@ const Profile = () => {
                       )}
                   </div>
 
+                  {/* Outlook Calendar */}
+                  <div className="flex flex-col justify-between p-4 rounded-xl border border-gray-700/50 bg-black/5">
+                      <div className="flex justify-between items-start mb-4">
+                          <div className="flex items-center gap-3">
+                              <div className="bg-white p-2 rounded-full">
+                                  <CalIcon className="text-blue-600" size={20} />
+                              </div>
+                              <div>
+                                  <h4 className="font-bold text-current text-sm">Import Outlook Calendar</h4>
+                                  {user?.outlookIntegration?.isConnected ? (
+                                      <p className="text-[10px] text-tt-green flex items-center gap-1">
+                                          <CheckCircle size={10} /> Connected
+                                      </p>
+                                  ) : (
+                                      <p className="text-[10px] opacity-70">Sync real events automatically</p>
+                                  )}
+                              </div>
+                          </div>
+                      </div>
+                      
+                      {user?.outlookIntegration?.isConnected ? (
+                          <div className="space-y-2 mt-auto">
+                              <p className="text-[10px] opacity-60">Last Synced: {user.outlookIntegration.lastSync ? new Date(user.outlookIntegration.lastSync).toLocaleString() : 'Never'}</p>
+                              <div className="flex gap-2">
+                                  <button onClick={syncOutlookCalendar} className="flex-1 bg-black/20 border border-gray-600/50 hover:bg-black/30 text-current text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-2 transition-colors">
+                                      <RefreshCw size={12} className={integrationLoading ? "animate-spin" : ""} /> Sync Now
+                                  </button>
+                                  <button onClick={handleOutlookDisconnect} className="bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs px-3 py-2 rounded-lg transition-colors border border-red-500/20" title="Disconnect">
+                                      <Unlink size={16} />
+                                  </button>
+                              </div>
+                          </div>
+                      ) : (
+                          <button 
+                            onClick={handleOutlookConnect} 
+                            disabled={integrationLoading}
+                            className="w-full bg-blue-700 hover:bg-blue-600 mt-auto text-white text-xs font-bold py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-md"
+                          >
+                              {integrationLoading ? 'Connecting...' : 'Connect Account'}
+                          </button>
+                      )}
+                  </div>
+
                   {/* Email Summary */}
                   <div className="flex flex-col justify-between p-4 rounded-xl border border-gray-700/50 bg-black/5">
                       <div className="flex justify-between items-start mb-4">
@@ -1312,8 +1379,8 @@ const Profile = () => {
 
       {showLinkHistoryModal && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <div className={`w-full max-w-lg rounded-2xl shadow-xl flex flex-col max-h-[80vh] ${isLightTheme ? 'bg-white' : 'bg-gray-900 text-white'}`}>
-                  <div className="p-4 border-b border-gray-700/50 flex justify-between items-center">
+              <div className={`w-full max-w-lg rounded-2xl shadow-xl flex flex-col max-h-[80vh] ${isLightTheme ? 'bg-white text-gray-900' : 'bg-gray-900 text-white'}`}>
+                  <div className={`p-4 border-b flex justify-between items-center ${isLightTheme ? 'border-gray-200' : 'border-gray-700/50'}`}>
                       <h3 className="font-bold text-lg flex items-center gap-2"><List size={18} /> Link History</h3>
                       <button onClick={() => setShowLinkHistoryModal(false)} className="p-2 hover:bg-black/10 rounded-full transition-colors">
                           <X size={20} />

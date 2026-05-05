@@ -26,6 +26,7 @@ service cloud.firestore {
           && (!('passkeyHash' in data) || (data.passkeyHash is string && data.passkeyHash.size() <= 256))
           && (!('backgroundAlertsEnabled' in data) || data.backgroundAlertsEnabled is bool)
           && (!('googleIntegration' in data) || data.googleIntegration is map)
+          && (!('outlookIntegration' in data) || data.outlookIntegration is map)
           && (!('excelIntegration' in data) || data.excelIntegration is map)
           && (!('loginAttempts' in data) || data.loginAttempts is number)
           && (!('lockUntil' in data) || data.lockUntil is number || data.lockUntil == null)
@@ -56,7 +57,7 @@ service cloud.firestore {
       // Ensure no ghost fields are injected during update
       let affected = incomingMap.diff(existingMap).affectedKeys();
       let allowedKeys = ['id', 'username', 'email', 'displayName', 'avatarUrl', 'joinedDate', 'passkeys', 'passkeyHash', 
-        'backgroundAlertsEnabled', 'googleIntegration', 'excelIntegration', 'loginAttempts', 'lockUntil', 'lastLoginIP', 
+        'backgroundAlertsEnabled', 'googleIntegration', 'outlookIntegration', 'excelIntegration', 'loginAttempts', 'lockUntil', 'lastLoginIP', 
         'deviceFingerprint', 'aiSettings', 'announcementLink', 'linkHistory', 'pro_status', 'subscription_active', 
         'subscription_date', 'emailSummaryUsed', 'automaticDailySummaryEnabled', 'daily_message_count', 'daily_file_upload_count', 'daily_link_count', 
         'last_reset_date'];

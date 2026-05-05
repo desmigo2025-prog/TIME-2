@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTasks } from '../contexts/TaskContext';
 import { useUsage } from '../contexts/UsageContext';
 import { useAuth } from '../contexts/AuthContext';
-import { TaskPriority, TaskStatus } from '../types';
+import { TaskPriority, TaskStatus, RecurrenceType } from '../types';
 import { parseVoiceTask } from '../services/geminiService';
 import { ArrowLeft, Mic, Loader, CheckCircle, StopCircle, Crown } from 'lucide-react';
 
@@ -36,6 +36,10 @@ const AddTask = () => {
     const [duration, setDuration] = useState('60');
     const [priority, setPriority] = useState<TaskPriority>(TaskPriority.MEDIUM);
     const [date, setDate] = useState('');
+    const [reminderTime, setReminderTime] = useState('');
+    const [reminderMessage, setReminderMessage] = useState('');
+    const [recurrence, setRecurrence] = useState<RecurrenceType>('none');
+    const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
 
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedDate = e.target.value;
@@ -70,7 +74,11 @@ const AddTask = () => {
             durationMinutes: parseInt(duration),
             priority: priority,
             status: TaskStatus.PENDING,
-            category: 'Personal'
+            category: 'Personal',
+            reminderTime: reminderTime || undefined,
+            reminderMessage: reminderMessage || undefined,
+            recurrence: recurrence !== 'none' ? recurrence : undefined,
+            recurrenceEndDate: recurrence !== 'none' && recurrenceEndDate ? recurrenceEndDate : undefined
         });
         navigate('/');
     };
@@ -266,6 +274,55 @@ const AddTask = () => {
                             <option key={p} value={p}>{p}</option>
                         ))}
                     </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className={`block text-sm opacity-70 mb-1 ${isLightTheme ? 'text-gray-700' : ''}`}>Recurrence</label>
+                        <select 
+                            value={recurrence}
+                            onChange={e => setRecurrence(e.target.value as RecurrenceType)}
+                            className={`w-full border rounded-xl p-4 focus:border-tt-blue focus:outline-none appearance-none ${isLightTheme ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-white'}`}
+                        >
+                            <option value="none">None</option>
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+                    </div>
+                    {recurrence !== 'none' && (
+                    <div>
+                        <label className={`block text-sm opacity-70 mb-1 ${isLightTheme ? 'text-gray-700' : ''}`}>Recurrence End Date</label>
+                        <input 
+                            type="date"
+                            value={recurrenceEndDate}
+                            onChange={e => setRecurrenceEndDate(e.target.value)}
+                            required
+                            className={`w-full border rounded-xl p-4 focus:border-tt-blue focus:outline-none ${isLightTheme ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-white'}`}
+                        />
+                    </div>
+                    )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className={`block text-sm opacity-70 mb-1 ${isLightTheme ? 'text-gray-700' : ''}`}>Reminder Time (Optional)</label>
+                        <input 
+                            type="time"
+                            value={reminderTime}
+                            onChange={e => setReminderTime(e.target.value)}
+                            className={`w-full border rounded-xl p-4 focus:border-tt-blue focus:outline-none ${isLightTheme ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-white'}`}
+                        />
+                    </div>
+                    <div>
+                        <label className={`block text-sm opacity-70 mb-1 ${isLightTheme ? 'text-gray-700' : ''}`}>Reminder Message</label>
+                        <input 
+                            value={reminderMessage}
+                            onChange={e => setReminderMessage(e.target.value)}
+                            className={`w-full border rounded-xl p-4 focus:border-tt-blue focus:outline-none ${isLightTheme ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-white'}`}
+                            placeholder="e.g., Bring laptop"
+                        />
+                    </div>
                 </div>
 
                 <div className="pt-4 space-y-3">

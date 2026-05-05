@@ -16,13 +16,15 @@ export enum TaskStatus {
 
 export type ValidationStatus = 'validated' | 'needs_review' | 'user_override';
 
+export type RecurrenceType = 'none' | 'daily' | 'weekly' | 'monthly';
+
 export interface PasskeyCredential {
     id: string;
     deviceName: string;
     createdAt: string;
 }
 
-export interface GoogleIntegration {
+export interface CalendarIntegration {
     isConnected: boolean;
     email?: string;
     lastSync?: string;
@@ -102,7 +104,8 @@ export interface User {
   passkeyHash?: string; // NEW: 4-Digit Code Hash
   backgroundAlertsEnabled?: boolean; // NEW: Notification Preference
   // Integrations
-  googleIntegration?: GoogleIntegration;
+  googleIntegration?: CalendarIntegration;
+  outlookIntegration?: CalendarIntegration;
   excelIntegration?: ExcelIntegration;
   // Security Fields
   loginAttempts: number;
@@ -161,8 +164,14 @@ export interface Task {
   priority: TaskPriority;
   status: TaskStatus;
   category: 'Personal' | 'Work' | 'School' | 'Other';
+  recurrence?: RecurrenceType;
+  recurrenceEndDate?: string;
+  parentTaskId?: string;
   isGoogleEvent?: boolean;
+  isOutlookEvent?: boolean;
   isExcelImport?: boolean;
+  reminderMessage?: string;
+  reminderTime?: string; // ISO date string or HH:mm string format depending on implementation
   // AI & Validation Fields
   confidenceScore?: number; 
   parsingMetaData?: ParsingMetaData; 

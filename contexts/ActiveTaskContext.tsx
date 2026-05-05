@@ -52,6 +52,22 @@ export const ActiveTaskProvider = ({ children }: { children?: ReactNode }) => {
         }
     }, [activeTaskId, timeLeft, isActive, user]);
 
+    // Sync active task status with external changes (e.g. manually completed)
+    useEffect(() => {
+        if (activeTaskId) {
+            const currentTask = tasks.find(t => t.id === activeTaskId);
+            if (currentTask && (currentTask.status === TaskStatus.COMPLETED || currentTask.status === TaskStatus.MISSED)) {
+                // Task was completed or missed, show 100% and then dismiss
+                setIsActive(false);
+                setTimeLeft(0);
+                const timer = setTimeout(() => {
+                    setActiveTaskId(prev => prev === activeTaskId ? null : prev);
+                }, 2000);
+                return () => clearTimeout(timer);
+            }
+        }
+    }, [tasks, activeTaskId]);
+
     // Timer loop
     useEffect(() => {
         let interval: NodeJS.Timeout;
@@ -71,7 +87,6 @@ export const ActiveTaskProvider = ({ children }: { children?: ReactNode }) => {
 
     const handleTaskComplete = (taskId: string) => {
         setIsActive(false);
-        setActiveTaskId(null);
         setTimeLeft(0);
         
         // Auto-complete in TaskContext

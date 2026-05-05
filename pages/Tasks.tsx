@@ -4,12 +4,13 @@ import { useUsage } from '../contexts/UsageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Card } from '../components/ui/Card';
 import { Task, TaskStatus, TaskPriority } from '../types';
-import { Calendar, Filter, CheckCircle, Circle, RefreshCw, AlertTriangle, ShieldAlert, Clock, Crown, ChevronLeft, ChevronRight, List, Grid, Cloud, Bot, Trash2, X, LayoutDashboard } from 'lucide-react';
+import { Calendar, Filter, CheckCircle, Circle, RefreshCw, AlertTriangle, ShieldAlert, Clock, Crown, ChevronLeft, ChevronRight, List, Grid, Cloud, Bot, Trash2, X, LayoutDashboard, Bell, Repeat } from 'lucide-react';
 import AIAvatar from '../components/AIAvatar';
 import { format, startOfWeek, addDays, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import DailyProgress from '../components/DailyProgress';
+import WeeklyTimetable from '../components/WeeklyTimetable';
 import ActiveTaskBanner from '../components/ActiveTaskBanner';
 import { useActiveTask } from '../contexts/ActiveTaskContext';
 
@@ -44,6 +45,11 @@ const Tasks = () => {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  
+  // Reminder modal state
+  const [taskForReminder, setTaskForReminder] = useState<Task | null>(null);
+  const [reminderTimeInput, setReminderTimeInput] = useState('');
+  const [reminderMessageInput, setReminderMessageInput] = useState('');
 
   // Filters state
   const [showFilters, setShowFilters] = useState(false);
@@ -186,9 +192,10 @@ const Tasks = () => {
           </div>
       </div>
 
-      <div className="animate-slide-up" style={{animationDelay: '0.1s'}}>
+      <div className="animate-slide-up space-y-6" style={{animationDelay: '0.1s'}}>
         <ActiveTaskBanner />
         <DailyProgress tasks={tasks} />
+        <WeeklyTimetable tasks={tasks} />
       </div>
 
       <div className="flex justify-between items-center animate-slide-up" style={{animationDelay: '0.1s'}}>
@@ -495,6 +502,14 @@ const Tasks = () => {
                                             <span>{task.durationMinutes} min</span>
                                             <span>•</span>
                                             <span className="truncate">{task.venue}</span>
+                                            {(task.recurrence || task.parentTaskId) && (
+                                                <>
+                                                    <span>•</span>
+                                                    <span className="flex items-center gap-1 text-purple-500 bg-purple-500/10 px-2 py-0.5 rounded-md text-xs font-bold" title="Recurring Task">
+                                                        <Repeat size={12} /> Recurring
+                                                    </span>
+                                                </>
+                                            )}
                                         </div>
 
                                         {/* Validation Flags */}
@@ -597,6 +612,7 @@ const Tasks = () => {
                                                               </div>
                                                           )}
                                                           {!isSelectionMode && (
+                                                              <>
                                                               <button 
                                                                   onClick={(e) => {
                                                                       e.stopPropagation();
@@ -607,6 +623,19 @@ const Tasks = () => {
                                                               >
                                                                   <Trash2 size={14} />
                                                               </button>
+                                                              <button 
+                                                                  onClick={(e) => {
+                                                                      e.stopPropagation();
+                                                                      setTaskForReminder(task);
+                                                                      setReminderTimeInput(task.reminderTime || '');
+                                                                      setReminderMessageInput(task.reminderMessage || '');
+                                                                  }}
+                                                                  className="absolute top-2 right-8 text-gray-400 hover:text-blue-500 transition-colors p-1 opacity-0 group-hover:opacity-100 z-10 bg-white/80 dark:bg-gray-800/80 rounded-full"
+                                                                  title="Set Reminder"
+                                                              >
+                                                                  <Bell size={14} />
+                                                              </button>
+                                                              </>
                                                           )}
                                                           <div className="flex justify-between items-start mb-2 pr-6">
                                                               <h4 className={`font-bold text-sm ${task.status === TaskStatus.COMPLETED ? 'line-through text-gray-500 decoration-[#2ECC71]/50' : task.status === TaskStatus.MISSED ? (isLightTheme ? 'text-red-700' : 'text-red-400') : (isLightTheme ? 'text-gray-900' : 'text-white')}`}>{task.title}</h4>
@@ -619,6 +648,11 @@ const Tasks = () => {
                                                               </span>
                                                           </div>
                                                           <div className={`text-xs font-mono ${isLightTheme ? 'text-gray-500' : 'text-gray-400'}`}>{task.time} • {task.durationMinutes}m</div>
+                                                          {(task.recurrence || task.parentTaskId) && (
+                                                              <div className="flex items-center gap-1 text-purple-500 bg-purple-500/10 w-fit px-1.5 py-0.5 rounded text-[10px] font-bold mt-1">
+                                                                  <Repeat size={10} /> Recurring
+                                                              </div>
+                                                          )}
                                                           <div className="flex flex-wrap gap-1 mt-2 items-center">
                                                               {task.status === TaskStatus.MISSED && (
                                                                   <button 
@@ -636,6 +670,18 @@ const Tasks = () => {
                                                               {task.validationStatus === 'user_override' && (
                                                                   <div className="text-[10px] flex items-center gap-1 text-orange-500 font-bold bg-orange-50 px-1.5 py-0.5 rounded">
                                                                       <ShieldAlert size={10} /> Forced
+                                                                  </div>
+                                                              )}
+                                                              {(task.reminderTime || task.reminderMessage) && (
+                                                                  <div className={`mt-2 p-1.5 rounded text-[10px] flex flex-col gap-0.5 ${isLightTheme ? 'bg-blue-50 text-blue-700' : 'bg-blue-900/30 text-blue-300'}`}>
+                                                                      {task.reminderTime && (
+                                                                         <div className="flex items-center gap-1 font-bold">
+                                                                             <Clock size={10} /> Reminder: {task.reminderTime}
+                                                                         </div>
+                                                                      )}
+                                                                      {task.reminderMessage && (
+                                                                         <div className="italic break-words">"{task.reminderMessage}"</div>
+                                                                      )}
                                                                   </div>
                                                               )}
                                                               {task.isGoogleEvent && (
@@ -705,6 +751,7 @@ const Tasks = () => {
                                               </div>
                                           )}
                                           {!isSelectionMode && (
+                                              <>
                                               <button 
                                                   onClick={(e) => {
                                                       e.stopPropagation();
@@ -715,12 +762,38 @@ const Tasks = () => {
                                               >
                                                   <Trash2 size={14} />
                                               </button>
+                                              <button 
+                                                  onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      setTaskForReminder(task);
+                                                      setReminderTimeInput(task.reminderTime || '');
+                                                      setReminderMessageInput(task.reminderMessage || '');
+                                                  }}
+                                                  className="absolute top-2 right-8 text-current opacity-50 hover:opacity-100 transition-opacity p-1"
+                                                  title="Set Reminder"
+                                              >
+                                                  <Bell size={14} />
+                                              </button>
+                                              </>
                                           )}
                                           <div className={`font-bold truncate ${isSelectionMode || !isSelectionMode ? 'pr-6' : ''}`}>{task.title}</div>
-                                          <div className="text-xs opacity-80 flex justify-between mt-1 font-medium">
+                                          <div className="text-xs opacity-80 flex justify-between mt-1 font-medium items-center">
                                               <span>{task.time}</span>
+                                              {(task.recurrence || task.parentTaskId) && <Repeat size={10} className="opacity-80" />}
                                               <span className="truncate max-w-[80px] text-right">{task.venue}</span>
                                           </div>
+                                          {(task.reminderTime || task.reminderMessage) && (
+                                              <div className={`mt-1.5 p-1 rounded text-[10px] flex flex-col gap-0.5 opacity-90 border border-current font-medium`}>
+                                                  {task.reminderTime && (
+                                                      <div className="flex items-center gap-1 font-bold">
+                                                          <Clock size={8} /> {task.reminderTime}
+                                                      </div>
+                                                  )}
+                                                  {task.reminderMessage && (
+                                                      <div className="italic truncate">"{task.reminderMessage}"</div>
+                                                  )}
+                                              </div>
+                                          )}
                                       </div>
                                   ))}
                                   {dayTasks.length === 0 && (
@@ -825,6 +898,78 @@ const Tasks = () => {
                           className="flex-1 py-3 rounded-xl font-bold bg-red-500 hover:bg-red-600 text-white transition-colors shadow-lg shadow-red-500/30"
                       >
                           Yes, Delete
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* Set Reminder Modal */}
+      {taskForReminder && (
+          <div className="fixed inset-0 min-h-screen bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+              <div className={`w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative animate-slide-up ${isLightTheme ? 'bg-white' : 'bg-gray-900 border border-gray-700'}`}>
+                  <button 
+                      onClick={() => {
+                          setTaskForReminder(null);
+                          setReminderTimeInput('');
+                          setReminderMessageInput('');
+                      }} 
+                      className={`absolute top-4 right-4 p-2 rounded-full transition-colors ${isLightTheme ? 'text-gray-400 hover:bg-gray-100' : 'text-gray-500 hover:bg-gray-800'}`}
+                  >
+                      <X size={20} />
+                  </button>
+                  <div className="flex items-center gap-3 text-blue-500 mb-4 bg-blue-500/10 w-fit p-3 rounded-full">
+                      <Bell size={24} />
+                  </div>
+                  <h2 className="text-xl font-black mb-2 text-current tracking-tight">Set Reminder</h2>
+                  <p className={`text-sm mb-6 ${isLightTheme ? 'text-gray-600' : 'text-gray-400'}`}>
+                      Set a reminder for <span className="font-bold text-current">"{taskForReminder.title}"</span>.
+                  </p>
+                  <div className="space-y-4 mb-6">
+                      <div>
+                          <label className={`block text-xs font-bold mb-1 opacity-70`}>Time</label>
+                          <input 
+                              type="time" 
+                              value={reminderTimeInput}
+                              onChange={(e) => setReminderTimeInput(e.target.value)}
+                              className={`w-full border rounded-xl p-3 focus:border-tt-blue focus:outline-none ${isLightTheme ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-white'}`}
+                          />
+                      </div>
+                      <div>
+                          <label className={`block text-xs font-bold mb-1 opacity-70`}>Message</label>
+                          <input 
+                              type="text"
+                              value={reminderMessageInput}
+                              onChange={(e) => setReminderMessageInput(e.target.value)}
+                              placeholder="e.g., Don't forget the files"
+                              className={`w-full border rounded-xl p-3 focus:border-tt-blue focus:outline-none ${isLightTheme ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-white'}`}
+                          />
+                      </div>
+                  </div>
+                  <div className="flex gap-3">
+                      <button 
+                          onClick={() => {
+                              setTaskForReminder(null);
+                              setReminderTimeInput('');
+                              setReminderMessageInput('');
+                          }}
+                          className={`flex-1 py-3 rounded-xl font-bold transition-colors ${isLightTheme ? 'bg-gray-100 hover:bg-gray-200 text-gray-700' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'}`}
+                      >
+                          Cancel
+                      </button>
+                      <button 
+                          onClick={() => {
+                              updateTask(taskForReminder.id, {
+                                  reminderTime: reminderTimeInput || undefined,
+                                  reminderMessage: reminderMessageInput || undefined
+                              });
+                              setTaskForReminder(null);
+                              setReminderTimeInput('');
+                              setReminderMessageInput('');
+                          }}
+                          className="flex-1 py-3 rounded-xl font-bold bg-blue-500 hover:bg-blue-600 text-white transition-colors shadow-lg shadow-blue-500/30"
+                      >
+                          Save
                       </button>
                   </div>
               </div>
