@@ -57,6 +57,11 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose }) => {
                 }),
               });
 
+              if (!res.ok) {
+                 const text = await res.text();
+                 throw new Error(`Server returned ${res.status}: ${text}`);
+              }
+
               const data = await res.json();
 
               if (data.success) {
@@ -70,9 +75,9 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose }) => {
               } else {
                 setError(data.error || 'Payment failed. Please try again.');
               }
-            } catch (err) {
+            } catch (err: any) {
               console.error(err);
-              setError('Payment failed. Please try again.');
+              setError(err.message || 'Payment failed. Please try again.');
             } finally {
               setIsLoading(false);
             }

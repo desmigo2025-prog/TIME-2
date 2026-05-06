@@ -58,7 +58,7 @@ service cloud.firestore {
       let affected = incomingMap.diff(existingMap).affectedKeys();
       let allowedKeys = ['id', 'username', 'email', 'displayName', 'avatarUrl', 'joinedDate', 'passkeys', 'passkeyHash', 
         'backgroundAlertsEnabled', 'googleIntegration', 'outlookIntegration', 'excelIntegration', 'loginAttempts', 'lockUntil', 'lastLoginIP', 
-        'deviceFingerprint', 'aiSettings', 'announcementLink', 'linkHistory', 'pro_status', 'subscription_active', 
+        'deviceFingerprint', 'aiSettings', 'announcementLink', 'announcementPreferences', 'linkHistory', 'pro_status', 'subscription_active', 
         'subscription_date', 'emailSummaryUsed', 'automaticDailySummaryEnabled', 'daily_message_count', 'daily_file_upload_count', 'daily_link_count', 
         'last_reset_date'];
       return affected.hasOnly(allowedKeys);
