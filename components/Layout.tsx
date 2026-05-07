@@ -21,7 +21,7 @@ const Layout = () => {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
 
-  const theme = user?.aiSettings?.theme || (user?.aiSettings?.natureThemeEnabled ? 'nature' : 'dark');
+  const theme = user?.aiSettings?.theme || 'nature';
   
   // Helper to determine if custom color is light
   const isCustomLight = () => {
@@ -38,12 +38,7 @@ const Layout = () => {
   const isNatureTheme = isLightTheme; // Alias for existing code
   const isCustomTheme = theme === 'custom';
   
-  let bgClass = "bg-tt-dark text-white";
-  if (isCustomTheme) {
-      bgClass = `bg-transparent ${isLightTheme ? 'text-gray-900' : 'text-white'}`;
-  } else if (isLightTheme) {
-      bgClass = "bg-transparent text-gray-900";
-  }
+  let bgClass = "bg-transparent text-gray-900";
 
   const handleFeedbackSubmit = () => {
     if (feedbackText.trim()) {
@@ -132,7 +127,7 @@ const Layout = () => {
               <button
                 key={item.name}
                 onClick={() => setShowMoreMenu(true)}
-                className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group hover:shadow-md ${isNatureTheme ? 'text-gray-600 hover:bg-white hover:text-tt-blue' : 'text-gray-400 hover:bg-white/10 hover:text-white'}`}
+                className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 group hover:shadow-md ${isNatureTheme ? 'text-gray-800 hover:bg-white/60 hover:text-tt-blue' : 'text-gray-400 hover:bg-white/10 hover:text-white'}`}
               >
                 <div className={`p-2 rounded-xl transition-colors ${isNatureTheme ? 'bg-gray-100 group-hover:bg-blue-50 group-hover:text-tt-blue' : 'bg-white/5 group-hover:bg-white/20'}`}>
                     <item.icon size={20} />
@@ -147,7 +142,7 @@ const Layout = () => {
                   `flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group ${
                     isActive
                       ? `bg-tt-blue text-white shadow-lg shadow-tt-blue/40 -translate-y-0.5`
-                      : isNatureTheme ? 'text-gray-600 hover:bg-white hover:text-tt-blue hover:shadow-sm' : 'text-gray-400 hover:bg-white/10 hover:text-white'
+                      : isNatureTheme ? 'text-gray-800 font-bold hover:bg-white/60 hover:text-tt-blue hover:shadow-sm' : 'text-gray-400 font-bold hover:bg-white/10 hover:text-white'
                   }`
                 }
               >

@@ -466,7 +466,7 @@ export const AIProvider = ({ children }: { children?: ReactNode }) => {
             // Context Building
             const now = new Date();
             const currentHashPath = window.location.hash.replace('#', '') || '/';
-            const currentTheme = user?.aiSettings?.theme || (user?.aiSettings?.natureThemeEnabled ? 'nature' : 'dark');
+            const currentTheme = user?.aiSettings?.theme || 'nature';
             const relevantTasks = tasks.filter(t => t.status === TaskStatus.PENDING || t.status === TaskStatus.MISSED);
             const taskSummary = relevantTasks.map(t => `[ID: ${t.id}] ${t.title} at ${t.time} for ${t.durationMinutes}m (${t.day}${t.date ? `, ${t.date}` : ''}) [Status: ${t.status}]`).join(", ");
             const lectureSummary = lectures.map(l => `ID: ${l.id}, Title: ${l.title}`).join("; ");

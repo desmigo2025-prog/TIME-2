@@ -10,7 +10,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 
 export default function ExamMode() {
   const { user } = useAuth();
-  const theme = user?.aiSettings?.theme || 'dark';
+  const theme = user?.aiSettings?.theme || 'nature';
   
   // Helper to determine if custom color is light
   const isCustomLight = () => {
@@ -148,7 +148,7 @@ export default function ExamMode() {
 
   if (!isPro) {
     return (
-      <div className={`min-h-screen pb-24 ${isCustomTheme ? 'bg-transparent' : isLightTheme ? 'bg-gray-50' : 'bg-[#0f1115]'} ${isLightTheme ? 'text-gray-900' : 'text-white'}`}>
+      <div className={`min-h-screen pb-24 bg-transparent ${isLightTheme ? 'text-gray-900' : 'text-white'}`}>
         <div className="p-6 pt-12 text-center">
           <div className="w-20 h-20 mx-auto bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-yellow-500/20">
             <Lock size={40} className="text-white" />
@@ -181,7 +181,7 @@ export default function ExamMode() {
   }
 
   return (
-    <div className={`min-h-screen pb-24 ${isCustomTheme ? 'bg-transparent' : isLightTheme ? 'bg-gray-50' : 'bg-[#0f1115]'} ${isLightTheme ? 'text-gray-900' : 'text-white'}`}>
+    <div className={`min-h-screen pb-24 bg-transparent ${isLightTheme ? 'text-gray-900' : 'text-white'}`}>
       <div className="p-6 pt-12">
         <div className="flex items-center gap-3 mb-8">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">

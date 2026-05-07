@@ -12,7 +12,7 @@ const ReviewTimetable = () => {
     const navigate = useNavigate();
     const { draftTasks, saveDraft, finalizeDraft, discardDraft, syncStatus } = useTasks();
     const { user } = useAuth();
-    const theme = user?.aiSettings?.theme || 'dark';
+    const theme = user?.aiSettings?.theme || 'nature';
     
     // Helper to determine if custom color is light
     const isCustomLight = () => {
@@ -314,7 +314,7 @@ const ReviewTimetable = () => {
     };
 
     return (
-        <div className={`h-[100dvh] w-full flex flex-col overflow-hidden relative ${isCustomTheme ? 'bg-transparent' : isLightTheme ? 'bg-gray-50' : 'bg-tt-dark'} ${isLightTheme ? 'text-gray-900' : 'text-white'}`}>
+        <div className={`h-[100dvh] w-full flex flex-col overflow-hidden relative bg-transparent ${isLightTheme ? 'text-gray-900' : 'text-white'}`}>
             
             {/* ISSUE SUMMARY MODAL */}
             {showIssueSummary && (

@@ -24,7 +24,7 @@ const ExamMode = lazy(() => import('./pages/ExamMode'));
 const StudyMaterials = lazy(() => import('./pages/StudyMaterials'));
 
 const LoadingFallback = () => (
-    <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
+    <div className="flex items-center justify-center min-h-screen bg-transparent text-gray-900">
         <Loader className="animate-spin text-tt-blue" size={48} />
     </div>
 );
@@ -45,7 +45,7 @@ const AppContent = () => {
     }, []);
 
     useEffect(() => {
-        const theme = user?.aiSettings?.theme || (user?.aiSettings?.natureThemeEnabled ? 'nature' : 'dark');
+        const theme = user?.aiSettings?.theme || 'nature';
         document.body.className = ''; // Reset classes
         document.body.style.removeProperty('--custom-theme-color');
         document.body.style.removeProperty('--custom-text-color');

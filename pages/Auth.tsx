@@ -120,23 +120,22 @@ const Auth = () => {
   return (
     <div 
       className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
-      style={{ backgroundImage: "url('/bg.png'), url('/bg.webp'), url('/bg.jpg')", backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat", backgroundColor: "#0F172A" }}
     >
-        <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] z-0"></div>
+        <div className="absolute inset-0 bg-white/30 backdrop-blur-sm z-0"></div>
         <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-tt-blue/20 rounded-full blur-3xl animate-pulse z-0"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-tt-red/20 rounded-full blur-3xl animate-pulse z-0"></div>
 
-      <div className="glass-panel w-full max-w-md p-8 rounded-3xl shadow-2xl z-10 border border-gray-700/50 relative">
+      <div className="w-full max-w-md p-8 rounded-3xl shadow-2xl z-10 border border-white/50 bg-white/60 backdrop-blur-xl relative">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
               <div className="bg-gradient-to-br from-tt-blue to-cyan-500 p-3 rounded-xl shadow-lg shadow-tt-blue/20">
                 <ShieldCheck size={32} className="text-white" />
               </div>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
               {viewState === 'recovery' ? 'Account Recovery' : viewState === 'passkey' ? 'Quick Login' : 'T.T Secure Access'}
           </h1>
-          <p className="text-gray-400 text-sm">Enterprise-Grade Timetable Management</p>
+          <p className="text-gray-700 font-medium text-sm">Enterprise-Grade Timetable Management</p>
         </div>
 
         {error && (
@@ -154,10 +153,10 @@ const Auth = () => {
         )}
 
         {(viewState === 'login' || viewState === 'register') && (
-            <div className="flex gap-4 mb-6 bg-gray-900/50 p-1 rounded-xl">
+            <div className="flex gap-4 mb-6 bg-white/40 p-1 rounded-xl shadow-inner border border-white/30">
                 <button
                     type="button"
-                    className={`flex-1 py-2 text-sm rounded-lg font-medium transition-all ${viewState === 'login' ? 'bg-tt-blue text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                    className={`flex-1 py-2 text-sm rounded-lg font-bold transition-all ${viewState === 'login' ? 'bg-tt-blue text-white shadow-lg' : 'text-gray-600 hover:text-gray-900'}`}
                     onClick={() => { setViewState('login'); setError(''); setSuccessMsg(''); }}
                     disabled={loading}
                 >
@@ -165,7 +164,7 @@ const Auth = () => {
                 </button>
                 <button
                     type="button"
-                    className={`flex-1 py-2 text-sm rounded-lg font-medium transition-all ${viewState === 'register' ? 'bg-tt-blue text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                    className={`flex-1 py-2 text-sm rounded-lg font-bold transition-all ${viewState === 'register' ? 'bg-tt-blue text-white shadow-lg' : 'text-gray-600 hover:text-gray-900'}`}
                     onClick={() => { setViewState('register'); setError(''); setSuccessMsg(''); }}
                     disabled={loading}
                 >
@@ -176,7 +175,7 @@ const Auth = () => {
 
         {viewState === 'passkey' ? (
             <div className="space-y-6">
-                <p className="text-center text-sm text-gray-400">Enter your 4-digit PIN for <b>{email}</b></p>
+                <p className="text-center text-sm text-gray-600">Enter your 4-digit PIN for <b>{email}</b></p>
                 <div className="flex justify-center gap-4 mb-4">
                       {[0,1,2,3].map(i => (
                           <div key={i} className={`w-4 h-4 rounded-full border-2 transition-all ${i < pin.length ? 'bg-tt-blue border-tt-blue scale-110' : 'border-gray-600'}`}></div>
@@ -185,24 +184,24 @@ const Auth = () => {
 
                 <div className="grid grid-cols-3 gap-4">
                       {[1,2,3,4,5,6,7,8,9].map(num => (
-                          <button key={num} onClick={() => handlePinInput(num)} className="h-14 rounded-xl bg-gray-800 hover:bg-gray-700 text-xl font-bold transition-colors">
+                          <button key={num} onClick={() => handlePinInput(num)} className="h-14 rounded-xl bg-white/50 border border-white/50 hover:bg-white/70 shadow-sm text-xl font-bold text-gray-900 transition-colors">
                               {num}
                           </button>
                       ))}
                       <div className="col-start-2">
-                           <button onClick={() => handlePinInput(0)} className="w-full h-14 rounded-xl bg-gray-800 hover:bg-gray-700 text-xl font-bold transition-colors">0</button>
+                           <button onClick={() => handlePinInput(0)} className="w-full h-14 rounded-xl bg-white/50 border border-white/50 hover:bg-white/70 shadow-sm text-xl font-bold text-gray-900 transition-colors">0</button>
                       </div>
                       <div className="col-start-3">
-                           <button onClick={() => setPin(prev => prev.slice(0, -1))} className="w-full h-14 rounded-xl hover:bg-gray-700 text-gray-400 flex items-center justify-center transition-colors"><XCircle size={24}/></button>
+                           <button onClick={() => setPin(prev => prev.slice(0, -1))} className="w-full h-14 rounded-xl hover:bg-white/70 text-gray-600 flex items-center justify-center transition-colors"><XCircle size={24}/></button>
                       </div>
                 </div>
 
                 <div className="flex gap-3">
-                    <button onClick={() => setViewState('login')} className="flex-1 py-3 bg-gray-800 rounded-xl text-gray-400 font-bold text-sm">Cancel</button>
+                    <button onClick={() => setViewState('login')} className="flex-1 py-3 bg-white/50 hover:bg-white/70 border border-white/50 rounded-xl text-gray-800 font-bold text-sm shadow-sm transition-colors">Cancel</button>
                     <button 
                         onClick={handlePinSubmit} 
                         disabled={loading || pin.length !== 4} 
-                        className={`flex-1 py-3 rounded-xl font-bold text-sm transition-colors ${pin.length === 4 ? 'bg-tt-blue text-white' : 'bg-gray-800 text-gray-500 cursor-not-allowed'}`}
+                        className={`flex-1 py-3 rounded-xl font-bold text-sm transition-colors ${pin.length === 4 ? 'bg-tt-blue text-white shadow-lg' : 'bg-white/40 text-gray-500 border border-white/40 cursor-not-allowed'}`}
                     >
                         {loading ? 'Verifying...' : 'Unlock'}
                     </button>
@@ -220,7 +219,7 @@ const Auth = () => {
                     placeholder="Username (Unique)"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="w-full bg-gray-900/50 border border-gray-700 text-white pl-10 pr-4 py-3 rounded-xl focus:outline-none focus:border-tt-blue focus:ring-1 focus:ring-tt-blue placeholder:text-gray-600"
+                    className="w-full bg-white/60 border border-white/50 text-gray-900 pl-10 pr-4 py-3 rounded-xl focus:outline-none focus:border-tt-blue focus:ring-2 focus:ring-tt-blue/50 placeholder:text-gray-500 shadow-inner font-medium"
                     required
                     disabled={loading}
                 />
@@ -235,7 +234,7 @@ const Auth = () => {
                 placeholder={viewState === 'login' ? "Email or Username" : "Valid Email Address"}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-gray-900/50 border border-gray-700 text-white pl-10 pr-4 py-3 rounded-xl focus:outline-none focus:border-tt-blue focus:ring-1 focus:ring-tt-blue placeholder:text-gray-600"
+                className="w-full bg-white/60 border border-white/50 text-gray-900 pl-10 pr-4 py-3 rounded-xl focus:outline-none focus:border-tt-blue focus:ring-2 focus:ring-tt-blue/50 placeholder:text-gray-500 shadow-inner font-medium"
                 required
                 disabled={loading}
                 />
@@ -250,7 +249,7 @@ const Auth = () => {
                     placeholder="Password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-gray-900/50 border border-gray-700 text-white pl-10 pr-4 py-3 rounded-xl focus:outline-none focus:border-tt-blue focus:ring-1 focus:ring-tt-blue placeholder:text-gray-600"
+                    className="w-full bg-white/60 border border-white/50 text-gray-900 pl-10 pr-4 py-3 rounded-xl focus:outline-none focus:border-tt-blue focus:ring-2 focus:ring-tt-blue/50 placeholder:text-gray-500 shadow-inner font-medium"
                     required
                     disabled={loading}
                     />
@@ -266,7 +265,7 @@ const Auth = () => {
                         placeholder="Special Recovery Word (6+ chars)"
                         value={specialWord}
                         onChange={(e) => setSpecialWord(e.target.value)}
-                        className="w-full bg-gray-900/50 border border-gray-700 text-white pl-10 pr-4 py-3 rounded-xl focus:outline-none focus:border-tt-blue focus:ring-1 focus:ring-tt-blue placeholder:text-gray-600"
+                        className="w-full bg-white/60 border border-white/50 text-gray-900 pl-10 pr-4 py-3 rounded-xl focus:outline-none focus:border-tt-blue focus:ring-2 focus:ring-tt-blue/50 placeholder:text-gray-500 shadow-inner font-medium"
                         required
                         disabled={loading}
                     />
@@ -279,10 +278,10 @@ const Auth = () => {
                 <div className="space-y-1 px-1 pt-1">
                     <div className="flex gap-1 h-1 mb-2">
                         {[1,2,3,4,5].map(i => (
-                            <div key={i} className={`flex-1 rounded-full h-full transition-all duration-300 ${passStrength >= i ? 'bg-tt-green' : 'bg-gray-700'}`}></div>
+                            <div key={i} className={`flex-1 rounded-full h-full transition-all duration-300 ${passStrength >= i ? 'bg-tt-green' : 'bg-gray-300'}`}></div>
                         ))}
                     </div>
-                    <p className="text-[10px] text-gray-400">
+                    <p className="text-[10px] text-gray-600">
                         Must contain: 12+ chars, uppercase, lowercase, number, special char.
                     </p>
                 </div>
@@ -307,7 +306,7 @@ const Auth = () => {
                         type="button"
                         onClick={initPasskeyLogin}
                         disabled={loading}
-                        className="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-3.5 rounded-xl border border-gray-600 transition-all flex items-center justify-center gap-2"
+                        className="w-full bg-white/50 hover:bg-white/70 text-gray-900 font-bold py-3.5 rounded-xl border border-white/50 shadow-sm transition-all flex items-center justify-center gap-2"
                     >
                         <Fingerprint size={20} className="text-tt-blue" />
                         Login with Passkey

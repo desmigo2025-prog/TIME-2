@@ -10,7 +10,7 @@ const GenerateTimetable = () => {
     const { isPro } = useUsage();
     const { user } = useAuth();
     
-    const theme = user?.aiSettings?.theme || (user?.aiSettings?.natureThemeEnabled ? 'nature' : 'dark');
+    const theme = user?.aiSettings?.theme || 'nature';
     const isLightTheme = theme === 'nature' || theme === 'ocean' || theme === 'sunset' || theme === 'ladies' || theme === 'white';
 
     const [isGenerating, setIsGenerating] = useState(false);
@@ -25,7 +25,7 @@ const GenerateTimetable = () => {
             <div className="flex flex-col items-center justify-center h-full p-6 text-center">
                 <Bot size={64} className="text-purple-500 mb-4" />
                 <h2 className="text-2xl font-bold mb-2">Pro Feature</h2>
-                <p className="text-gray-400 mb-6">Upgrade to Pro to let AI generate your perfect study schedule instantly.</p>
+                <p className={`${isLightTheme ? 'text-gray-600' : 'text-gray-400'} mb-6`}>Upgrade to Pro to let AI generate your perfect study schedule instantly.</p>
                 <button 
                     onClick={() => navigate('/')}
                     className="bg-tt-blue text-white px-6 py-2 rounded-xl font-bold"
@@ -81,16 +81,16 @@ const GenerateTimetable = () => {
 
             <div className={`${isLightTheme ? 'bg-white/80 border-gray-200' : 'bg-gray-900/50 border-gray-700'} border p-6 rounded-2xl space-y-6`}>
                 {/* Mode Selection */}
-                <div className={`flex ${isLightTheme ? 'bg-gray-100' : 'bg-gray-800'} p-1 rounded-xl`}>
+                <div className={`flex ${isLightTheme ? 'bg-white/60' : 'bg-gray-800'} p-1 rounded-xl`}>
                     <button 
                         onClick={() => setMode('daily')}
-                        className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${mode === 'daily' ? 'bg-tt-blue text-white shadow-md' : 'text-gray-400 hover:text-white'}`}
+                        className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${mode === 'daily' ? 'bg-tt-blue text-white shadow-md' : (isLightTheme ? 'text-gray-600 hover:text-gray-900' : 'text-gray-400 hover:text-white')}`}
                     >
                         Daily Plan
                     </button>
                     <button 
                         onClick={() => setMode('weekly')}
-                        className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${mode === 'weekly' ? 'bg-tt-blue text-white shadow-md' : 'text-gray-400 hover:text-white'}`}
+                        className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${mode === 'weekly' ? 'bg-tt-blue text-white shadow-md' : (isLightTheme ? 'text-gray-600 hover:text-gray-900' : 'text-gray-400 hover:text-white')}`}
                     >
                         Weekly Plan
                     </button>

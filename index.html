@@ -55,11 +55,19 @@
     <style>
       body {
         font-family: 'Inter', sans-serif;
-        background-color: #0F172A;
-        color: #ffffff;
+        background: linear-gradient(-45deg, #10B981, #8B5CF6, #3B82F6, #FFFFFF);
+        background-size: 400% 400%;
+        animation: gradientBG 15s ease infinite;
+        background-attachment: fixed;
+        color: #111827; /* Dark text since background has white */
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
         transition: background 0.5s ease, background-color 0.5s ease, color 0.5s ease;
+      }
+      @keyframes gradientBG {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
       }
       /* Custom Scrollbar */
       ::-webkit-scrollbar {
@@ -88,7 +96,9 @@
         transition: background-color 0.3s ease, border-color 0.3s ease;
       }
       body.nature-theme {
-        background: linear-gradient(135deg, rgba(220,80,80,0.6), rgba(70,130,180,0.6), rgba(100,180,100,0.6), rgba(255,215,100,0.6));
+        background: linear-gradient(-45deg, #10B981, #8B5CF6, #3B82F6, #FFFFFF);
+        background-size: 400% 400%;
+        animation: gradientBG 15s ease infinite;
         background-attachment: fixed;
         color: #111827;
       }

@@ -21,7 +21,7 @@ const Tasks = () => {
   const { startTask } = useActiveTask();
   const { isPro } = useUsage();
   const { user } = useAuth();
-  const theme = user?.aiSettings?.theme || 'dark';
+  const theme = user?.aiSettings?.theme || 'nature';
   
   // Helper to determine if custom color is light
   const isCustomLight = () => {

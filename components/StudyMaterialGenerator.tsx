@@ -16,7 +16,7 @@ const StudyMaterialGenerator: React.FC<StudyMaterialGeneratorProps> = ({ sourceT
   const [materialType, setMaterialType] = useState<'flashcards' | 'multiple_choice' | 'short_answer'>('flashcards');
   const [count, setCount] = useState(10);
 
-  const theme = user?.aiSettings?.theme || 'dark';
+  const theme = user?.aiSettings?.theme || 'nature';
   
   // Helper to determine if custom color is light
   const isCustomLight = () => {

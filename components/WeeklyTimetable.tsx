@@ -8,7 +8,7 @@ const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
 
 export default function WeeklyTimetable({ tasks }: { tasks: Task[] }) {
     const { user } = useAuth();
-    const theme = user?.aiSettings?.theme || 'dark';
+    const theme = user?.aiSettings?.theme || 'nature';
     
     const isCustomLight = () => {
         if (theme !== 'custom' || !user?.aiSettings?.customThemeColor) return false;
@@ -25,7 +25,7 @@ export default function WeeklyTimetable({ tasks }: { tasks: Task[] }) {
     const currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 }); // Monday
 
     return (
-        <div className={`rounded-[2rem] p-6 shadow-sm border overflow-hidden ${isLightTheme ? 'bg-white border-gray-200' : 'bg-gray-800/80 backdrop-blur-md border-gray-700'}`}>
+        <div className={`rounded-[2rem] p-6 shadow-xl border overflow-hidden ${isLightTheme ? 'bg-white/80 backdrop-blur-xl border-white/50' : 'bg-gray-800/80 backdrop-blur-md border-gray-700'}`}>
             <h3 className="text-xl font-black mb-6 flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center">
                     <Calendar size={16} className="text-[#1E90FF]" />

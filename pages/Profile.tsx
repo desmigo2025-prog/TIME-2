@@ -774,7 +774,7 @@ const Profile = () => {
                           </div>
                       </div>
                       <select
-                          value={user?.aiSettings?.theme || (user?.aiSettings?.natureThemeEnabled ? 'nature' : 'dark')}
+                          value={user?.aiSettings?.theme || 'nature'}
                           onChange={(e) => setAppTheme(e.target.value as any)}
                           className={`text-xs rounded-lg px-2 py-1 border border-gray-700/50 outline-none focus:border-tt-blue ${isLightTheme ? 'bg-white/50 text-gray-900' : 'bg-gray-800 text-white'}`}
                       >
