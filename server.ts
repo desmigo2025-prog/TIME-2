@@ -240,24 +240,26 @@ async function startServer() {
       });
     }
 
-    // Background mock worker for automatic daily summaries
-    setInterval(async () => {
-      try {
-        const firebaseAdmin = getFirebaseAdmin();
-        const db = firebaseAdmin.firestore();
-        
-        const usersSnapshot = await db.collection("users")
-          .where("user.automaticDailySummaryEnabled", "==", true)
-          .get();
+    // Background mock worker for automatic daily summaries, skip on Vercel to avoid lambda hanging
+    if (!process.env.VERCEL) {
+      setInterval(async () => {
+        try {
+          const firebaseAdmin = getFirebaseAdmin();
+          const db = firebaseAdmin.firestore();
           
-        if (!usersSnapshot.empty) {
-          console.log(`Sending daily summaries to ${usersSnapshot.size} users.`);
-          // In a real implementation: Send email logic here by iterating usersSnapshot.docs
+          const usersSnapshot = await db.collection("users")
+            .where("user.automaticDailySummaryEnabled", "==", true)
+            .get();
+            
+          if (!usersSnapshot.empty) {
+            console.log(`Sending daily summaries to ${usersSnapshot.size} users.`);
+            // In a real implementation: Send email logic here by iterating usersSnapshot.docs
+          }
+        } catch (e) {
+          // Ignore background errors or missing config
         }
-      } catch (e) {
-        // Ignore background errors or missing config
-      }
-    }, 1000 * 60 * 60 * 24); // Run daily
+      }, 1000 * 60 * 60 * 24); // Run daily
+    }
 
     // Only bind to a port if we are NOT in a serverless environment like Vercel
     if (!process.env.VERCEL) {
