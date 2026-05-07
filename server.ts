@@ -11,7 +11,14 @@ const app = express();
 const PORT = 3000;
 
 app.use(cors());
-app.use(express.json());
+
+// Handle body parsing properly, especially in serverless environments where it might already be parsed
+app.use((req, res, next) => {
+  if (req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0) {
+    return next();
+  }
+  express.json()(req, res, next);
+});
 
 // Initialize Firebase Admin
 let adminInitialized = false;
@@ -215,47 +222,51 @@ app.post("/api/verify-payment", async (req, res) => {
 });
 
 async function startServer() {
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
-    const { createServer: createViteServer } = await import("vite");
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else if (!process.env.VERCEL) {
-    // Only serve static files this way if NOT running as a Vercel Serverless Function
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*all', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-  }
-
-  // Background mock worker for automatic daily summaries
-  setInterval(async () => {
-    try {
-      const firebaseAdmin = getFirebaseAdmin();
-      const db = firebaseAdmin.firestore();
-      
-      const usersSnapshot = await db.collection("users")
-        .where("user.automaticDailySummaryEnabled", "==", true)
-        .get();
-        
-      if (!usersSnapshot.empty) {
-        console.log(`Sending daily summaries to ${usersSnapshot.size} users.`);
-        // In a real implementation: Send email logic here by iterating usersSnapshot.docs
-      }
-    } catch (e) {
-      // Ignore background errors or missing config
+  try {
+    // Vite middleware for development (Skip on Vercel)
+    if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
+      const { createServer: createViteServer } = await import("vite");
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    } else if (!process.env.VERCEL) {
+      // Only serve static files this way if NOT running as a Vercel Serverless Function
+      const distPath = path.join(process.cwd(), 'dist');
+      app.use(express.static(distPath));
+      app.get('*all', (req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
     }
-  }, 1000 * 60 * 60 * 24); // Run daily
 
-  // Only bind to a port if we are NOT in a serverless environment like Vercel
-  if (!process.env.VERCEL) {
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
+    // Background mock worker for automatic daily summaries
+    setInterval(async () => {
+      try {
+        const firebaseAdmin = getFirebaseAdmin();
+        const db = firebaseAdmin.firestore();
+        
+        const usersSnapshot = await db.collection("users")
+          .where("user.automaticDailySummaryEnabled", "==", true)
+          .get();
+          
+        if (!usersSnapshot.empty) {
+          console.log(`Sending daily summaries to ${usersSnapshot.size} users.`);
+          // In a real implementation: Send email logic here by iterating usersSnapshot.docs
+        }
+      } catch (e) {
+        // Ignore background errors or missing config
+      }
+    }, 1000 * 60 * 60 * 24); // Run daily
+
+    // Only bind to a port if we are NOT in a serverless environment like Vercel
+    if (!process.env.VERCEL) {
+      app.listen(PORT, "0.0.0.0", () => {
+        console.log(`Server running on http://localhost:${PORT}`);
+      });
+    }
+  } catch (error) {
+    console.error("Failed to start server:", error);
   }
 }
 
